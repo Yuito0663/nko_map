@@ -856,3 +856,52 @@ header {
 .close-modal:hover {
     color: #333;
 }
+
+/* User Menu Styles */
+.user-menu {
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  background: var(--white);
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  padding: 10px 0;
+  min-width: 200px;
+  z-index: 10000;
+  border: 1px solid #eee;
+}
+
+.menu-item {
+  padding: 10px 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background-color 0.2s;
+}
+
+.menu-item:hover {
+  background-color: var(--light-gray);
+}
+
+.menu-item.logout {
+  color: var(--error-red);
+}
+
+.menu-item i {
+  width: 16px;
+  text-align: center;
+}
+
+.user-menu hr {
+  margin: 5px 0;
+  border: none;
+  border-top: 1px solid #eee;
+}
+
+/* Header button with dropdown indicator */
+#loginBtn::after {
+  content: ' ▾';
+  font-size: 12px;
+  opacity: 0.7;
+}
