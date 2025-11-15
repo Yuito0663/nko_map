@@ -34,7 +34,8 @@ const testConnection = async () => {
     
   } catch (error) {
     console.error('❌ Unable to connect to PostgreSQL database:', error);
-    process.exit(1);
+    // Не завершаем процесс на Render, чтобы приложение продолжало работать
+    console.log('⚠️ Continuing without database connection...');
   }
 };
 

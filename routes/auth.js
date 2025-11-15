@@ -71,6 +71,8 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log('🔐 Login attempt for:', email);
+
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -84,6 +86,8 @@ router.post('/login', async (req, res) => {
       attributes: { include: ['password'] }
     });
     
+    console.log('👤 User found:', !!user);
+    
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -92,7 +96,10 @@ router.post('/login', async (req, res) => {
     }
 
     // Check password
+    console.log('🔑 Checking password...');
     const isMatch = await user.comparePassword(password);
+    console.log('✅ Password match:', isMatch);
+    
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -107,6 +114,8 @@ router.post('/login', async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
 
+    console.log('✅ Login successful for:', email);
+
     res.json({
       success: true,
       message: 'Вход выполнен успешно',
@@ -116,16 +125,16 @@ router.post('/login', async (req, res) => {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        role: user.role,
-        nkoId: user.nkoId
+        role: user.role
       }
     });
 
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
+    console.error('📋 Error details:', error.message);
     res.status(500).json({
       success: false,
-      message: 'Ошибка сервера при входе'
+      message: 'Ошибка сервера при входе: ' + error.message
     });
   }
 });
@@ -143,7 +152,9 @@ router.get('/me', async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findByPk(decoded.userId);
+    const user = await User.findByPk(decoded.userId, {
+      attributes: { exclude: ['password'] }
+    });
     
     if (!user) {
       return res.status(404).json({
@@ -159,8 +170,7 @@ router.get('/me', async (req, res) => {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        role: user.role,
-        nkoId: user.nkoId
+        role: user.role
       }
     });
   } catch (error) {
