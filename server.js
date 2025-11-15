@@ -19,11 +19,6 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
-
-// Или более простая настройка:
-app.set('trust proxy', 1);
-
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
