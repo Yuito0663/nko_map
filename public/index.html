@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карта добрых дел - НКО городов Росатома</title>
+    <meta name="description" content="Интерактивная карта некоммерческих организаций в городах присутствия Росатома">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-hand-holding-heart logo-icon"></i>
+                <span class="logo-text">Карта добрых дел</span>
+            </div>
+            <div class="nav-buttons">
+                <button class="btn btn-outline" id="helpBtn">
+                    <i class="fas fa-question-circle"></i> Помощь
+                </button>
+                <button class="btn btn-primary" id="loginBtn">
+                    <i class="fas fa-user"></i> Войти
+                </button>
+                <button class="btn btn-secondary" id="addNkoBtn">
+                    <i class="fas fa-plus"></i> Добавить НКО
+                </button>
+            </div>
+            <button class="mobile-menu">
+                <i class="fas fa-bars"></i>
+            </button>
+        </header>
+        
+        <div class="main-content">
+            <button class="toggle-sidebar btn btn-primary">
+                <i class="fas fa-filter"></i> Фильтры
+            </button>
+            
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">Поиск</h3>
+                    <div class="filter-group">
+                        <input type="text" class="search-input" placeholder="Название НКО..." id="searchInput">
+                    </div>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">Города</h3>
+                    <div class="filter-group">
+                        <select class="select-input" id="citySelect">
+                            <option value="">Все города</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">Категории</h3>
+                    <div class="checkbox-group" id="categoryFilter">
+                    </div>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">Организации</h3>
+                    <div class="nko-list" id="nkoList">
+                        <div class="loading">Загрузка организаций...</div>
+                    </div>
+                </div>
+            </aside>
+            
+            <div class="map-container">
+                <div id="map"></div>
+                
+                <div class="nko-card" id="nkoCard">
+                    <div class="card-header">
+                        <div>
+                            <h3 class="card-title" id="cardTitle">Название организации</h3>
+                            <span class="card-category" id="cardCategory">Категория</span>
+                        </div>
+                        <button class="close-card" id="closeCard">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="card-content">
+                        <div class="card-field">
+                            <div class="field-icon">
+                                <i class="fas fa-info-circle"></i>
+                            </div>
+                            <div>
+                                <p id="cardDescription">Описание деятельности организации</p>
+                                <p class="mt-10" id="cardVolunteer">Функционал волонтеров</p>
+                            </div>
+                        </div>
+                        
+                        <div class="card-field">
+                            <div class="field-icon">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div id="cardAddress">Адрес организации</div>
+                        </div>
+                        
+                        <div class="card-field">
+                            <div class="field-icon">
+                                <i class="fas fa-phone"></i>
+                            </div>
+                            <div id="cardPhone">Контактный телефон</div>
+                        </div>
+                        
+                        <div class="card-field">
+                            <div class="field-icon">
+                                <i class="fas fa-globe"></i>
+                            </div>
+                            <div id="cardWebsite">Сайт организации</div>
+                        </div>
+                    </div>
+                    
+                    <div class="social-links" id="cardSocial">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальные окна остаются без изменений -->
+    <!-- Auth Modal -->
+    <div class="modal" id="authModal">
+        <!-- ... содержимое модального окна ... -->
+    </div>
+    
+    <!-- Add NKO Modal -->
+    <div class="modal" id="addNkoModal">
+        <!-- ... содержимое модального окна ... -->
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/script.js"></script>
+</body>
+</html>
