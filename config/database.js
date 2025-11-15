@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Для Render PostgreSQL
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
   protocol: 'postgres',
@@ -22,19 +21,17 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
   }
 });
 
-// Test connection
 const testConnection = async () => {
   try {
     await sequelize.authenticate();
     console.log('✅ PostgreSQL connection established successfully.');
     
-    // Sync database
-    await sequelize.sync({ force: false });
-    console.log('✅ Database synchronized');
+    // Синхронизация с принудительным обновлением структуры
+    await sequelize.sync({ force: false, alter: true });
+    console.log('✅ Database synchronized and updated');
     
   } catch (error) {
     console.error('❌ Unable to connect to PostgreSQL database:', error);
-    // Не завершаем процесс на Render, чтобы приложение продолжало работать
     console.log('⚠️ Continuing without database connection...');
   }
 };
