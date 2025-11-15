@@ -176,26 +176,63 @@ const mapService = {
 const uiController = {
     // Initialize UI components
     init() {
-        this.populateCities();
-        this.populateCategories();
-        this.setupEventListeners();
+        console.log('🔧 Initializing UI components...');
+        
+        // Ждем пока DOM полностью загрузится
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                this.setupEventListeners();
+                this.populateCities();
+                this.populateCategories();
+            });
+        } else {
+            // DOM уже загружен
+            this.setupEventListeners();
+            this.populateCities();
+            this.populateCategories();
+        }
     },
 
     populateCities() {
+    try {
         const citySelect = document.getElementById('citySelect');
         const nkoCitySelect = document.getElementById('nkoCity');
+        
+        // Проверяем что элементы существуют
+        if (!citySelect || !nkoCitySelect) {
+            console.warn('⚠️ City select elements not found, retrying...');
+            setTimeout(() => this.populateCities(), 100);
+            return;
+        }
 
+        console.log('✅ Populating cities...');
+        
         CONFIG.CITIES.forEach(city => {
             const option = `<option value="${city}">${city}</option>`;
             citySelect.innerHTML += option;
             nkoCitySelect.innerHTML += option;
         });
-    },
+        
+        console.log('✅ Cities populated successfully');
+    } catch (error) {
+        console.error('❌ Error populating cities:', error);
+    }
+},
 
     populateCategories() {
+    try {
         const categoryFilter = document.getElementById('categoryFilter');
         const nkoCategorySelect = document.getElementById('nkoCategory');
+        
+        // Проверяем что элементы существуют
+        if (!categoryFilter || !nkoCategorySelect) {
+            console.warn('⚠️ Category elements not found, retrying...');
+            setTimeout(() => this.populateCategories(), 100);
+            return;
+        }
 
+        console.log('✅ Populating categories...');
+        
         CONFIG.CATEGORIES.forEach(category => {
             // Filter checkboxes
             categoryFilter.innerHTML += `
@@ -208,7 +245,12 @@ const uiController = {
             // Form select option
             nkoCategorySelect.innerHTML += `<option value="${category}">${category}</option>`;
         });
-    },
+        
+        console.log('✅ Categories populated successfully');
+    } catch (error) {
+        console.error('❌ Error populating categories:', error);
+    }
+},
 
     setupEventListeners() {
         // Auth modal
