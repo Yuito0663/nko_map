@@ -235,6 +235,7 @@ header {
 .map-container {
     flex: 1;
     position: relative;
+    overflow: hidden;
 }
 
 #map {
@@ -242,24 +243,30 @@ header {
     width: 100%;
 }
 
-/* Яндекс.Карты кастомизация */
-.ymaps-2-1-79-map {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+/* Стили для 2ГИС попапов */
+.dg-popup__container {
+    border-radius: 8px !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
 }
 
+.dg-popup__close {
+    background: #006CB7 !important;
+    color: white !important;
+    border-radius: 50% !important;
+}
+
+/* Кастомные стили для маркеров */
+.dg-pin__icon {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* Скрываем стандартный балун если нужно */
 .ymaps-2-1-79-balloon {
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-    border-radius: 8px;
-}
-
-.ymaps-2-1-79-balloon__content {
-    padding: 0;
-    margin: 0;
+    display: none;
 }
 
 .ymaps-2-1-79-balloon__close-button {
-    width: 25px;
-    height: 25px;
+    display: none;
 }
 
 /* Auth Modal */

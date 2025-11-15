@@ -3,8 +3,6 @@ const CONFIG = {
     API_BASE_URL: window.location.hostname === 'localhost' 
         ? 'http://localhost:10000/api' 
         : '/api',
-    DOMAIN: window.location.hostname,
-    YANDEX_MAPS_API_KEY: '850ebf56-d22c-48f6-8bb6-01602cc24abf',
     CITIES: [
         'Ангарск', 'Байкальск', 'Балаково', 'Билибино', 'Волгодонск',
         'Глазов', 'Десногорск', 'Димитровград', 'Железногорск', 'Заречный',
@@ -357,6 +355,15 @@ const mapService = {
                 this.map.setView(latlng, 15);
             }
         }
+    },
+
+    // Удалить все маркеры и очистить карту
+    destroy() {
+        this.clearMarkers();
+        if (this.map && this.map.remove) {
+            this.map.remove();
+        }
+        this.isInitialized = false;
     }
 };
 
@@ -638,112 +645,98 @@ const uiController = {
     },
 
     // Update auth UI with profile and admin access
-    // Update auth UI with profile and admin access
-updateAuthUI() {
-  const loginBtn = document.getElementById('loginBtn');
-  const addNkoBtn = document.getElementById('addNkoBtn');
+    updateAuthUI() {
+        const loginBtn = document.getElementById('loginBtn');
+        const addNkoBtn = document.getElementById('addNkoBtn');
 
-  if (state.currentUser) {
-    // Show username and add menu
-    if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
-      loginBtn.innerHTML = `<i class="fas fa-crown"></i> ${state.currentUser.firstName} ▾`;
-    } else {
-      loginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName} ▾`;
-    }
-    
-    // Правильный обработчик для меню пользователя
-    loginBtn.onclick = (e) => {
-      e.stopPropagation();
-      this.showUserMenu();
-    };
-    
-    addNkoBtn.disabled = false;
-  } else {
-    loginBtn.innerHTML = '<i class="fas fa-user"></i> Войти';
-    loginBtn.onclick = () => document.getElementById('authModal').classList.add('active');
-    addNkoBtn.disabled = true;
-  }
-},
-
-// Show user menu with options
-// Show user menu with options
-showUserMenu() {
-  console.log('🎯 showUserMenu called');
-  console.log('👤 Current user:', state.currentUser);
-  console.log('🎭 User role:', state.currentUser?.role);
-  // Создаем выпадающее меню
-  const menu = document.createElement('div');
-  menu.className = 'user-menu';
-  menu.style.cssText = `
-    position: fixed;
-    top: 70px;
-    right: 20px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    padding: 10px 0;
-    min-width: 200px;
-    z-index: 10000;
-    border: 1px solid #eee;
-  `;
-
-  // Для администратора
-  if (state.currentUser.role === 'admin') {
-    menu.innerHTML = `
-      <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showProfile()">
-        <i class="fas fa-user"></i> Личный кабинет
-      </div>
-      <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showAdminPanel()">
-        <i class="fas fa-crown"></i> Админ панель
-      </div>
-      <hr style="margin: 5px 0; border: none; border-top: 1px solid #eee;">
-      <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #dc3545;" onclick="app.logout()">
-        <i class="fas fa-sign-out-alt"></i> Выйти
-      </div>
-    `;
-  } else {
-    // Для обычного пользователя
-    menu.innerHTML = `
-      <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showProfile()">
-        <i class="fas fa-user"></i> Личный кабинет
-      </div>
-      <hr style="margin: 5px 0; border: none; border-top: 1px solid #eee;">
-      <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #dc3545;" onclick="app.logout()">
-        <i class="fas fa-sign-out-alt"></i> Выйти
-      </div>
-    `;
-  }
-
-  // Удаляем старое меню если есть
-  const oldMenu = document.querySelector('.user-menu');
-  if (oldMenu) oldMenu.remove();
-
-  document.body.appendChild(menu);
-
-  // Закрытие меню при клике вне его
-  const closeMenu = (e) => {
-    if (!menu.contains(e.target) && e.target.id !== 'loginBtn') {
-      menu.remove();
-      document.removeEventListener('click', closeMenu);
-    }
-  };
-
-  setTimeout(() => {
-    document.addEventListener('click', closeMenu);
-  }, 100);
-},
-
-    // Show user menu
-    showUserMenu() {
-        if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
-            if (confirm('Открыть личный кабинет или админ панель?')) {
-                this.showAdminPanel();
+        if (state.currentUser) {
+            // Show username and add menu
+            if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
+                loginBtn.innerHTML = `<i class="fas fa-crown"></i> ${state.currentUser.firstName} ▾`;
             } else {
-                this.showProfile();
+                loginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName} ▾`;
             }
+            
+            // Правильный обработчик для меню пользователя
+            loginBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.showUserMenu();
+            };
+            
+            addNkoBtn.disabled = false;
         } else {
-            this.showProfile();
+            loginBtn.innerHTML = '<i class="fas fa-user"></i> Войти';
+            loginBtn.onclick = () => document.getElementById('authModal').classList.add('active');
+            addNkoBtn.disabled = true;
         }
+    },
+
+    // Show user menu with options
+    showUserMenu() {
+        console.log('🎯 showUserMenu called');
+        console.log('👤 Current user:', state.currentUser);
+        console.log('🎭 User role:', state.currentUser?.role);
+        
+        // Создаем выпадающее меню
+        const menu = document.createElement('div');
+        menu.className = 'user-menu';
+        menu.style.cssText = `
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 10px 0;
+            min-width: 200px;
+            z-index: 10000;
+            border: 1px solid #eee;
+        `;
+
+        // Для администратора
+        if (state.currentUser.role === 'admin') {
+            menu.innerHTML = `
+                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showProfile()">
+                    <i class="fas fa-user"></i> Личный кабинет
+                </div>
+                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showAdminPanel()">
+                    <i class="fas fa-crown"></i> Админ панель
+                </div>
+                <hr style="margin: 5px 0; border: none; border-top: 1px solid #eee;">
+                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #dc3545;" onclick="app.logout()">
+                    <i class="fas fa-sign-out-alt"></i> Выйти
+                </div>
+            `;
+        } else {
+            // Для обычного пользователя
+            menu.innerHTML = `
+                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showProfile()">
+                    <i class="fas fa-user"></i> Личный кабинет
+                </div>
+                <hr style="margin: 5px 0; border: none; border-top: 1px solid #eee;">
+                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #dc3545;" onclick="app.logout()">
+                    <i class="fas fa-sign-out-alt"></i> Выйти
+                </div>
+            `;
+        }
+
+        // Удаляем старое меню если есть
+        const oldMenu = document.querySelector('.user-menu');
+        if (oldMenu) oldMenu.remove();
+
+        document.body.appendChild(menu);
+
+        // Закрытие меню при клике вне его
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target) && e.target.id !== 'loginBtn') {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+        }, 100);
     },
 
     // Show profile modal
@@ -813,27 +806,27 @@ showUserMenu() {
     },
 
     // Show admin panel
-async showAdminPanel() {
-  try {
-    console.log('👑 Opening admin panel...');
-    
-    // Закрываем меню
-    const menu = document.querySelector('.user-menu');
-    if (menu) menu.remove();
-    
-    // Показываем модальное окно
-    document.getElementById('adminModal').classList.add('active');
-    
-    // Загружаем данные для модерации
-    await this.loadModerationData();
-    
-    console.log('✅ Admin panel opened successfully');
-    
-  } catch (error) {
-    console.error('❌ Error opening admin panel:', error);
-    alert('Ошибка загрузки админ панели: ' + error.message);
-  }
-},
+    async showAdminPanel() {
+        try {
+            console.log('👑 Opening admin panel...');
+            
+            // Закрываем меню
+            const menu = document.querySelector('.user-menu');
+            if (menu) menu.remove();
+            
+            // Показываем модальное окно
+            document.getElementById('adminModal').classList.add('active');
+            
+            // Загружаем данные для модерации
+            await this.loadModerationData();
+            
+            console.log('✅ Admin panel opened successfully');
+            
+        } catch (error) {
+            console.error('❌ Error opening admin panel:', error);
+            alert('Ошибка загрузки админ панели: ' + error.message);
+        }
+    },
 
     // Load moderation data
     async loadModerationData() {
@@ -1030,19 +1023,33 @@ async showAdminPanel() {
         });
     },
 
-    showNpoCard(npoId) {
-    const npo = state.npos.find(n => n.id == npoId);
-    if (npo) {
-        state.selectedNPO = npo;
-        uiController.showNPOCard(npo);
+    // Show NPO card with details
+    showNPOCard(npo) {
+        const card = document.getElementById('nkoCard');
+        document.getElementById('cardTitle').textContent = npo.name;
+        document.getElementById('cardCategory').textContent = npo.category;
+        document.getElementById('cardDescription').textContent = npo.description;
+        document.getElementById('cardVolunteer').textContent = npo.volunteerActivities;
+        document.getElementById('cardAddress').textContent = npo.address;
+        document.getElementById('cardPhone').textContent = npo.phone || 'Не указан';
+        document.getElementById('cardWebsite').textContent = npo.website || 'Не указан';
+
+        // Social links
+        const socialContainer = document.getElementById('cardSocial');
+        socialContainer.innerHTML = '';
         
-        // Центрируем карту на выбранной НКО
-        mapService.setView(npo.lat, npo.lng, 15);
-        
-        // Открываем балун на карте
-        mapService.openBalloon(npoId);
+        if (npo.social_vk) {
+            socialContainer.innerHTML += `<a href="${npo.social_vk}" class="social-link" target="_blank"><i class="fab fa-vk"></i></a>`;
+        }
+        if (npo.social_telegram) {
+            socialContainer.innerHTML += `<a href="${npo.social_telegram}" class="social-link" target="_blank"><i class="fab fa-telegram"></i></a>`;
+        }
+        if (npo.social_instagram) {
+            socialContainer.innerHTML += `<a href="${npo.social_instagram}" class="social-link" target="_blank"><i class="fab fa-instagram"></i></a>`;
+        }
+
+        card.classList.add('active');
     }
-},
 };
 
 // Main Application
@@ -1190,26 +1197,32 @@ const app = {
         if (npo) {
             state.selectedNPO = npo;
             uiController.showNPOCard(npo);
+            
+            // Центрируем карту на выбранной НКО и открываем попап
+            mapService.setView(npo.lat, npo.lng, 15);
+            setTimeout(() => {
+                mapService.openPopup(npoId);
+            }, 300);
         }
     },
 
     logout() {
-  state.currentUser = null;
-  state.authToken = null;
-  localStorage.removeItem('authToken');
-  uiController.updateAuthUI();
-  
-  // Закрываем все модальные окна
-  document.querySelectorAll('.modal').forEach(modal => {
-    modal.classList.remove('active');
-  });
-  
-  // Удаляем меню если открыто
-  const menu = document.querySelector('.user-menu');
-  if (menu) menu.remove();
-  
-  alert('Вы вышли из системы');
-}
+        state.currentUser = null;
+        state.authToken = null;
+        localStorage.removeItem('authToken');
+        uiController.updateAuthUI();
+        
+        // Закрываем все модальные окна
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.classList.remove('active');
+        });
+        
+        // Удаляем меню если открыто
+        const menu = document.querySelector('.user-menu');
+        if (menu) menu.remove();
+        
+        alert('Вы вышли из системы');
+    }
 };
 
 // Debug: Check that script is loaded
