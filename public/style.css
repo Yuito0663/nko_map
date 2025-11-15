@@ -859,8 +859,8 @@ header {
 
 /* User Menu Styles */
 .user-menu {
-  position: absolute;
-  top: 60px;
+  position: fixed;
+  top: 70px;
   right: 20px;
   background: var(--white);
   border-radius: 8px;
@@ -878,14 +878,15 @@ header {
   align-items: center;
   gap: 10px;
   transition: background-color 0.2s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-size: 14px;
 }
 
 .menu-item:hover {
   background-color: var(--light-gray);
-}
-
-.menu-item.logout {
-  color: var(--error-red);
 }
 
 .menu-item i {

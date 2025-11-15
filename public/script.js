@@ -527,13 +527,17 @@ updateAuthUI() {
 },
 
 // Show user menu with options
+// Show user menu with options
 showUserMenu() {
+  console.log('🎯 showUserMenu called');
+  console.log('👤 Current user:', state.currentUser);
+  console.log('🎭 User role:', state.currentUser?.role);
   // Создаем выпадающее меню
   const menu = document.createElement('div');
   menu.className = 'user-menu';
   menu.style.cssText = `
-    position: absolute;
-    top: 60px;
+    position: fixed;
+    top: 70px;
     right: 20px;
     background: white;
     border-radius: 8px;
@@ -541,28 +545,31 @@ showUserMenu() {
     padding: 10px 0;
     min-width: 200px;
     z-index: 10000;
+    border: 1px solid #eee;
   `;
 
-  if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
+  // Для администратора
+  if (state.currentUser.role === 'admin') {
     menu.innerHTML = `
-      <div class="menu-item" onclick="uiController.showProfile()" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;">
+      <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showProfile()">
         <i class="fas fa-user"></i> Личный кабинет
       </div>
-      <div class="menu-item" onclick="uiController.showAdminPanel()" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;">
+      <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showAdminPanel()">
         <i class="fas fa-crown"></i> Админ панель
       </div>
-      <hr style="margin: 5px 0;">
-      <div class="menu-item" onclick="app.logout()" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #dc3545;">
+      <hr style="margin: 5px 0; border: none; border-top: 1px solid #eee;">
+      <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #dc3545;" onclick="app.logout()">
         <i class="fas fa-sign-out-alt"></i> Выйти
       </div>
     `;
   } else {
+    // Для обычного пользователя
     menu.innerHTML = `
-      <div class="menu-item" onclick="uiController.showProfile()" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;">
+      <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showProfile()">
         <i class="fas fa-user"></i> Личный кабинет
       </div>
-      <hr style="margin: 5px 0;">
-      <div class="menu-item" onclick="app.logout()" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #dc3545;">
+      <hr style="margin: 5px 0; border: none; border-top: 1px solid #eee;">
+      <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #dc3545;" onclick="app.logout()">
         <i class="fas fa-sign-out-alt"></i> Выйти
       </div>
     `;
@@ -667,15 +674,27 @@ showUserMenu() {
     },
 
     // Show admin panel
-    async showAdminPanel() {
-        try {
-            await this.loadModerationData();
-            document.getElementById('adminModal').classList.add('active');
-        } catch (error) {
-            console.error('Error loading admin panel:', error);
-            alert('Ошибка загрузки админ панели');
-        }
-    },
+async showAdminPanel() {
+  try {
+    console.log('👑 Opening admin panel...');
+    
+    // Закрываем меню
+    const menu = document.querySelector('.user-menu');
+    if (menu) menu.remove();
+    
+    // Показываем модальное окно
+    document.getElementById('adminModal').classList.add('active');
+    
+    // Загружаем данные для модерации
+    await this.loadModerationData();
+    
+    console.log('✅ Admin panel opened successfully');
+    
+  } catch (error) {
+    console.error('❌ Error opening admin panel:', error);
+    alert('Ошибка загрузки админ панели: ' + error.message);
+  }
+},
 
     // Load moderation data
     async loadModerationData() {
