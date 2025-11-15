@@ -165,115 +165,196 @@ const apiService = {
     }
 };
 
-// Map service for Yandex Maps
+// Map service for 2GIS
 const mapService = {
     map: null,
     markers: [],
-    objectManager: null,
+    isInitialized: false,
 
     init() {
-        // Initialize Yandex Map
-        ymaps.ready(() => {
-            console.log('🗺️ Initializing Yandex Map...');
+        try {
+            console.log('🗺️ Initializing 2GIS Map...');
             
-            this.map = new ymaps.Map('map', {
+            // Очищаем контейнер карты
+            const mapContainer = document.getElementById('map');
+            mapContainer.innerHTML = '';
+
+            // Инициализация карты 2GIS
+            this.map = DG.map('map', {
                 center: [55.75, 37.62],
                 zoom: 5,
-                controls: ['zoomControl', 'fullscreenControl']
+                geoclicker: false
             });
 
-            // Create object manager for markers
-            this.objectManager = new ymaps.ObjectManager({
-                clusterize: true,
-                gridSize: 32,
-                clusterDisableClickZoom: true
-            });
+            this.isInitialized = true;
+            console.log('✅ 2GIS Map initialized successfully');
 
-            this.objectManager.objects.options.set({
-                preset: 'islands#blueCircleIcon',
-                iconColor: '#006CB7'
-            });
-
-            this.objectManager.clusters.options.set({
-                preset: 'islands#blueClusterIcons'
-            });
-
-            // Add click handler for markers
-            this.objectManager.objects.events.add('click', (e) => {
-                const objectId = e.get('objectId');
-                const npo = state.npos.find(n => n.id == objectId);
-                if (npo) {
-                    app.showNpoCard(npo.id);
-                }
-            });
-
-            this.map.geoObjects.add(this.objectManager);
-            console.log('✅ Yandex Map initialized');
-        });
+        } catch (error) {
+            console.error('❌ Error initializing 2GIS Map:', error);
+        }
     },
 
     addMarker(npo) {
-        if (!this.objectManager) return;
+        if (!this.map || !this.isInitialized) {
+            console.warn('⚠️ Map not ready, skipping marker:', npo.name);
+            return null;
+        }
 
-        const marker = {
-            type: 'Feature',
-            id: npo.id,
-            geometry: {
-                type: 'Point',
-                coordinates: [npo.lng, npo.lat]
-            },
-            properties: {
-                balloonContent: `
-                    <div style="min-width: 200px; padding: 10px;">
-                        <h4 style="margin: 0 0 8px 0; color: #006CB7;">${npo.name}</h4>
-                        <p style="margin: 0 0 8px 0; font-size: 12px; color: #777;">
-                            <strong>Категория:</strong> ${npo.category}
+        try {
+            // Создаем метку
+            const marker = DG.marker([parseFloat(npo.lat), parseFloat(npo.lng)])
+                .addTo(this.map)
+                .bindPopup(`
+                    <div style="min-width: 250px; padding: 10px;">
+                        <h4 style="margin: 0 0 8px 0; color: #006CB7;">${this.escapeHtml(npo.name)}</h4>
+                        <p style="margin: 0 0 6px 0; font-size: 12px; color: #777;">
+                            <strong>Категория:</strong> ${this.escapeHtml(npo.category)}
                         </p>
-                        <p style="margin: 0 0 12px 0; font-size: 14px;">
-                            ${npo.description.substring(0, 100)}...
+                        <p style="margin: 0 0 6px 0; font-size: 12px; color: #777;">
+                            <strong>Город:</strong> ${this.escapeHtml(npo.city)}
                         </p>
-                        <button class="btn btn-primary" onclick="app.showNpoCard(${npo.id})" 
-                                style="padding: 6px 12px; font-size: 12px; border: none; border-radius: 4px; background: #006CB7; color: white; cursor: pointer;">
+                        <p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.4;">
+                            ${this.escapeHtml(npo.description.substring(0, 120))}...
+                        </p>
+                        <button onclick="app.showNpoCard(${npo.id})" 
+                                style="padding: 8px 16px; background: #006CB7; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%;">
                             Подробнее
                         </button>
                     </div>
-                `,
-                hintContent: npo.name,
-                clusterCaption: npo.name
-            }
+                `);
+
+            // Устанавливаем иконку в зависимости от категории
+            this.setMarkerIcon(marker, npo.category);
+
+            // Сохраняем ссылку на маркер
+            marker.npoId = npo.id;
+            this.markers.push(marker);
+
+            // Обработчик клика по метке
+            marker.on('click', () => {
+                app.showNpoCard(npo.id);
+            });
+
+            return marker;
+
+        } catch (error) {
+            console.error('❌ Error adding marker:', error);
+            return null;
+        }
+    },
+
+    // Установка иконки маркера по категории
+    setMarkerIcon(marker, category) {
+        const colors = {
+            'Экология': '#28a745',
+            'Помощь животным': '#ffc107', 
+            'Социальная поддержка': '#dc3545',
+            'Образование': '#007bff',
+            'Культура': '#6f42c1',
+            'Спорт': '#fd7e14',
+            'Здравоохранение': '#e83e8c',
+            'Другое': '#6c757d'
         };
 
-        this.objectManager.add(marker);
-        this.markers.push(marker);
-        return marker;
+        const color = colors[category] || '#006CB7';
+        
+        // Создаем кастомную иконку
+        const icon = DG.icon({
+            iconUrl: this.createMarkerIcon(color),
+            iconSize: [30, 30],
+            iconAnchor: [15, 30]
+        });
+        
+        marker.setIcon(icon);
+    },
+
+    // Создание SVG иконки для маркера
+    createMarkerIcon(color) {
+        const svg = `
+            <svg width="30" height="30" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15 0C9.477 0 5 4.477 5 10c0 5.523 4.477 10 10 10s10-4.477 10-10C25 4.477 20.523 0 15 0z" 
+                      fill="${color}" stroke="#ffffff" stroke-width="2"/>
+                <circle cx="15" cy="10" r="3" fill="#ffffff"/>
+            </svg>
+        `;
+        return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+    },
+
+    // Экранирование HTML для безопасности
+    escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     },
 
     clearMarkers() {
-        if (this.objectManager) {
-            this.objectManager.removeAll();
+        if (this.markers.length > 0) {
+            this.markers.forEach(marker => {
+                if (marker && marker.remove) {
+                    marker.remove();
+                }
+            });
+            this.markers = [];
         }
-        this.markers = [];
     },
 
     updateMarkers(npos) {
+        if (!this.isInitialized) {
+            console.warn('⚠️ Map not initialized, skipping markers update');
+            return;
+        }
+
+        console.log(`📍 Updating ${npos.length} markers on 2GIS map...`);
+        
+        // Очищаем старые маркеры
         this.clearMarkers();
-        npos.forEach(npo => this.addMarker(npo));
+
+        // Добавляем новые маркеры с оптимизацией производительности
+        this.addMarkersWithDelay(npos, 0);
     },
 
-    setView(lat, lng, zoom = 13) {
-        if (this.map) {
-            this.map.setCenter([lng, lat], zoom);
+    // Добавление маркеров с задержкой для производительности
+    addMarkersWithDelay(npos, index) {
+        if (index >= npos.length) {
+            console.log(`✅ All ${npos.length} markers added to map`);
+            return;
+        }
+
+        // Добавляем пачками по 10 маркеров
+        const batchSize = 10;
+        const endIndex = Math.min(index + batchSize, npos.length);
+
+        for (let i = index; i < endIndex; i++) {
+            this.addMarker(npos[i]);
+        }
+
+        // Следующая пачка через 50мс
+        if (endIndex < npos.length) {
+            setTimeout(() => {
+                this.addMarkersWithDelay(npos, endIndex);
+            }, 50);
         }
     },
 
-    // Новый метод для открытия балуна по НКО
-    openBalloon(npoId) {
-        if (this.objectManager && this.map) {
-            const marker = this.objectManager.objects.getById(npoId);
-            if (marker) {
-                this.map.balloon.open(marker.geometry.coordinates, {
-                    content: marker.properties.balloonContent
-                });
+    setView(lat, lng, zoom = 13) {
+        if (this.map && this.isInitialized) {
+            this.map.setView([parseFloat(lat), parseFloat(lng)], zoom);
+        }
+    },
+
+    // Открыть попап для конкретной НКО
+    openPopup(npoId) {
+        const marker = this.markers.find(m => m.npoId == npoId);
+        if (marker) {
+            marker.openPopup();
+            
+            // Центрируем карту на маркере
+            const latlng = marker.getLatLng();
+            if (latlng) {
+                this.map.setView(latlng, 15);
             }
         }
     }
