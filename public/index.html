@@ -234,6 +234,159 @@
         </div>
     </div>
 
+<!-- Profile Modal -->
+<div class="modal" id="profileModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Личный кабинет</h2>
+            <button class="close-modal" id="closeProfileModal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="profile-content">
+            <div class="profile-header">
+                <div class="avatar">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="profile-info">
+                    <h3 id="profileName">Имя Фамилия</h3>
+                    <span class="user-role" id="profileRole">Пользователь</span>
+                    <p id="profileEmail">email@example.com</p>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="statTotal">0</div>
+                    <div class="stat-label">Всего НКО</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="statApproved">0</div>
+                    <div class="stat-label">Одобрено</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="statPending">0</div>
+                    <div class="stat-label">На модерации</div>
+                </div>
+            </div>
+
+            <div class="profile-section">
+                <h4>Мои организации</h4>
+                <div class="user-npos" id="userNposList">
+                    <div class="loading">Загрузка...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Panel Modal -->
+<div class="modal" id="adminModal">
+    <div class="modal-content admin-modal">
+        <div class="modal-header">
+            <h2 class="modal-title">Панель администратора</h2>
+            <button class="close-modal" id="closeAdminModal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="admin-tabs">
+            <div class="admin-tab active" data-tab="moderation">Модерация</div>
+            <div class="admin-tab" data-tab="statistics">Статистика</div>
+            <div class="admin-tab" data-tab="users">Пользователи</div>
+        </div>
+
+        <div class="admin-content">
+            <!-- Moderation Tab -->
+            <div class="admin-tab-content active" id="moderationTab">
+                <div class="moderation-header">
+                    <h3>Организации на модерации</h3>
+                    <div class="moderation-stats">
+                        <span class="badge pending" id="pendingCount">0 на проверке</span>
+                    </div>
+                </div>
+                <div class="moderation-list" id="moderationList">
+                    <div class="loading">Загрузка...</div>
+                </div>
+            </div>
+
+            <!-- Statistics Tab -->
+            <div class="admin-tab-content" id="statisticsTab">
+                <h3>Общая статистика</h3>
+                <div class="stats-grid admin-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="adminTotalNPOs">0</div>
+                        <div class="stat-label">Всего НКО</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="adminApprovedNPOs">0</div>
+                        <div class="stat-label">Одобрено</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="adminPendingNPOs">0</div>
+                        <div class="stat-label">На модерации</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="adminTotalUsers">0</div>
+                        <div class="stat-label">Пользователей</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Tab -->
+            <div class="admin-tab-content" id="usersTab">
+                <h3>Пользователи системы</h3>
+                <div class="users-list" id="usersList">
+                    <div class="loading">Загрузка...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NPO Status Badges (добавьте в CSS классы) -->
+<style>
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-pending {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.status-approved {
+    background-color: #28a745;
+    color: #fff;
+}
+
+.status-rejected {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+.user-role {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.role-user {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+.role-admin {
+    background-color: #007bff;
+    color: #fff;
+}
+</style>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/script.js"></script>
 </body>

@@ -1,17 +1,9 @@
-// Debug: Проверка что скрипт загружен
-console.log('🚀 script.js loaded successfully');
-
-// Debug: Проверка доступности функций
-console.log('🔧 Functions available:', {
-    uiController: typeof uiController,
-    app: typeof app,
-    mapService: typeof mapService
-});
-// Configuration
+// Configuration for Render
 const CONFIG = {
     API_BASE_URL: window.location.hostname === 'localhost' 
         ? 'http://localhost:10000/api' 
         : '/api',
+    DOMAIN: window.location.hostname,
     CITIES: [
         'Ангарск', 'Байкальск', 'Балаково', 'Билибино', 'Волгодонск',
         'Глазов', 'Десногорск', 'Димитровград', 'Железногорск', 'Заречный',
@@ -30,7 +22,11 @@ const CONFIG = {
         'Спорт',
         'Здравоохранение',
         'Другое'
-    ]
+    ],
+    ROLES: {
+        USER: 'user',
+        ADMIN: 'admin'
+    }
 };
 
 // Application state
@@ -53,6 +49,7 @@ const apiService = {
                 ...options.headers,
             },
             ...options,
+            mode: 'cors',
         };
 
         if (state.authToken) {
@@ -64,16 +61,27 @@ const apiService = {
         }
 
         try {
+            console.log(`🔄 API Request: ${options.method || 'GET'} ${url}`);
+            
             const response = await fetch(url, config);
-            const data = await response.json();
-
+            
             if (!response.ok) {
-                throw new Error(data.message || 'Ошибка сервера');
+                const errorText = await response.text();
+                console.error(`❌ API Error ${response.status}:`, errorText);
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
 
+            const data = await response.json();
+            console.log(`✅ API Success: ${options.method || 'GET'} ${url}`);
             return data;
+            
         } catch (error) {
-            console.error('API request error:', error);
+            console.error('❌ API request failed:', error);
+            
+            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                throw new Error('Не удалось подключиться к серверу. Проверьте, что бэкенд запущен.');
+            }
+            
             throw error;
         }
     },
@@ -97,20 +105,13 @@ const apiService = {
         return this.request('/auth/me');
     },
 
-    async forgotPassword(email) {
-        return this.request('/auth/forgot-password', {
-            method: 'POST',
-            body: { email },
-        });
-    },
-
     // NPO methods
     async getNPOs(filters = {}) {
         const params = new URLSearchParams();
         Object.entries(filters).forEach(([key, value]) => {
             if (value) params.append(key, value);
         });
-
+        
         const query = params.toString();
         const endpoint = query ? `/npo?${query}` : '/npo';
         return this.request(endpoint);
@@ -121,6 +122,45 @@ const apiService = {
             method: 'POST',
             body: npoData,
         });
+    },
+
+    // Profile methods
+    async getProfile() {
+        return this.request('/profile');
+    },
+
+    async getProfileStats() {
+        return this.request('/profile/stats');
+    },
+
+    async getUserNPOs() {
+        return this.request('/profile/npos');
+    },
+
+    // Admin methods
+    async getModerationNPOs(status = 'pending') {
+        return this.request(`/admin/npos?status=${status}`);
+    },
+
+    async getAdminStats() {
+        return this.request('/admin/stats');
+    },
+
+    async getUsers() {
+        return this.request('/admin/users');
+    },
+
+    async approveNPO(npoId) {
+        return this.request(`/admin/npos/${npoId}/approve`, {
+            method: 'PATCH'
+        });
+    },
+
+    async rejectNPO(npoId, reason) {
+        return this.request(`/admin/npos/${npoId}/reject`, {
+            method: 'PATCH',
+            body: { rejectionReason: reason }
+        });
     }
 };
 
@@ -129,7 +169,7 @@ const mapService = {
     init() {
         // Initialize Leaflet map
         state.map = L.map('map').setView([55.75, 37.62], 5);
-
+        
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(state.map);
@@ -147,18 +187,18 @@ const mapService = {
                     <p style="margin: 0 0 12px 0; font-size: 14px;">
                         ${npo.description.substring(0, 100)}...
                     </p>
-                    <button class="btn btn-primary" onclick="app.showNpoCard('${npo._id}')"
+                    <button class="btn btn-primary" onclick="app.showNpoCard('${npo.id}')" 
                             style="padding: 6px 12px; font-size: 12px;">
                         Подробнее
                     </button>
                 </div>
             `);
 
-        marker.npoId = npo._id;
+        marker.npoId = npo.id;
         state.markers.push(marker);
 
         marker.on('click', () => {
-            app.showNpoCard(npo._id);
+            app.showNpoCard(npo.id);
         });
 
         return marker;
@@ -187,239 +227,291 @@ const uiController = {
     init() {
         console.log('🔧 Initializing UI components...');
         
-        // Сначала настраиваем обработчики событий
-        this.setupEventListeners();
-        
-        // Затем заполняем данные (с задержкой)
-        setTimeout(() => {
-            this.populateCities();
-            this.populateCategories();
-        }, 100);
+        // Wait for DOM to be fully loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                this.delayedInit();
+            });
+        } else {
+            setTimeout(() => this.delayedInit(), 100);
+        }
     },
 
-    populateCities() {
-    try {
-        const citySelect = document.getElementById('citySelect');
-        const nkoCitySelect = document.getElementById('nkoCity');
-        
-        // Проверяем что элементы существуют
-        if (!citySelect || !nkoCitySelect) {
-            console.warn('⚠️ City select elements not found, retrying...');
-            setTimeout(() => this.populateCities(), 100);
-            return;
-        }
-
-        console.log('✅ Populating cities...');
-        
-        CONFIG.CITIES.forEach(city => {
-            const option = `<option value="${city}">${city}</option>`;
-            citySelect.innerHTML += option;
-            nkoCitySelect.innerHTML += option;
-        });
-        
-        console.log('✅ Cities populated successfully');
-    } catch (error) {
-        console.error('❌ Error populating cities:', error);
-    }
-},
-
-    populateCategories() {
-    try {
-        const categoryFilter = document.getElementById('categoryFilter');
-        const nkoCategorySelect = document.getElementById('nkoCategory');
-        
-        // Проверяем что элементы существуют
-        if (!categoryFilter || !nkoCategorySelect) {
-            console.warn('⚠️ Category elements not found, retrying...');
-            setTimeout(() => this.populateCategories(), 100);
-            return;
-        }
-
-        console.log('✅ Populating categories...');
-        
-        CONFIG.CATEGORIES.forEach(category => {
-            // Filter checkboxes
-            categoryFilter.innerHTML += `
-                <label class="checkbox-item">
-                    <input type="checkbox" name="category" value="${category}" checked>
-                    <span>${category}</span>
-                </label>
-            `;
-
-            // Form select option
-            nkoCategorySelect.innerHTML += `<option value="${category}">${category}</option>`;
-        });
-        
-        console.log('✅ Categories populated successfully');
-    } catch (error) {
-        console.error('❌ Error populating categories:', error);
-    }
-},
+    delayedInit() {
+        console.log('🕒 Delayed UI initialization...');
+        this.setupEventListeners();
+        this.populateCities();
+        this.populateCategories();
+    },
 
     setupEventListeners() {
-    console.log('🔧 Setting up event listeners...');
-    
-    const maxRetries = 10;
-    let retries = 0;
-    
-    const trySetup = () => {
-        // Ищем все необходимые элементы
-        const loginBtn = document.getElementById('loginBtn');
-        const addNkoBtn = document.getElementById('addNkoBtn');
-        const helpBtn = document.getElementById('helpBtn');
-        const authModal = document.getElementById('authModal');
-        const addNkoModal = document.getElementById('addNkoModal');
-        const closeCard = document.getElementById('closeCard');
-        const cancelAddNko = document.getElementById('cancelAddNko');
-        const authForm = document.getElementById('authForm');
-        const addNkoForm = document.getElementById('addNkoForm');
-        const tabs = document.querySelectorAll('.tab');
-        const toggleSidebar = document.querySelector('.toggle-sidebar');
-        const searchInput = document.getElementById('searchInput');
-        const citySelect = document.getElementById('citySelect');
+        console.log('🔧 Setting up event listeners...');
+        
+        const maxRetries = 10;
+        let retries = 0;
+        
+        const trySetup = () => {
+            // Find all necessary elements
+            const loginBtn = document.getElementById('loginBtn');
+            const addNkoBtn = document.getElementById('addNkoBtn');
+            const helpBtn = document.getElementById('helpBtn');
+            const authModal = document.getElementById('authModal');
+            const addNkoModal = document.getElementById('addNkoModal');
+            const closeCard = document.getElementById('closeCard');
+            const cancelAddNko = document.getElementById('cancelAddNko');
+            const authForm = document.getElementById('authForm');
+            const addNkoForm = document.getElementById('addNkoForm');
+            const tabs = document.querySelectorAll('.tab');
+            const toggleSidebar = document.querySelector('.toggle-sidebar');
+            const searchInput = document.getElementById('searchInput');
+            const citySelect = document.getElementById('citySelect');
+            const closeProfileModal = document.getElementById('closeProfileModal');
+            const closeAdminModal = document.getElementById('closeAdminModal');
+            const adminTabs = document.querySelectorAll('.admin-tab');
 
-        // Проверяем что все основные элементы найдены
-        const essentialElements = [loginBtn, addNkoBtn, helpBtn, authModal, addNkoModal];
-        const allFound = essentialElements.every(element => element !== null);
+            // Check if all essential elements exist
+            const essentialElements = [loginBtn, addNkoBtn, helpBtn, authModal, addNkoModal];
+            const allFound = essentialElements.every(element => element !== null);
 
-        if (allFound) {
-            console.log('✅ All essential elements found, setting up listeners...');
-            
-            // Auth modal
-            loginBtn.addEventListener('click', () => {
-                console.log('🎯 Login button clicked');
-                authModal.classList.add('active');
-            });
-
-            addNkoBtn.addEventListener('click', () => {
-                console.log('🎯 Add NKO button clicked');
-                if (!state.currentUser) {
-                    alert('Пожалуйста, войдите в систему для добавления организации');
+            if (allFound) {
+                console.log('✅ All essential elements found, setting up listeners...');
+                
+                // Auth modal
+                loginBtn.addEventListener('click', () => {
+                    console.log('🎯 Login button clicked');
                     authModal.classList.add('active');
-                    return;
-                }
-                addNkoModal.classList.add('active');
-            });
+                });
 
-            // Help button
-            helpBtn.addEventListener('click', () => {
-                console.log('🎯 Help button clicked');
-                alert(`Добро пожаловать на Карту добрых дел!\n\n
+                addNkoBtn.addEventListener('click', () => {
+                    console.log('🎯 Add NKO button clicked');
+                    if (!state.currentUser) {
+                        alert('Пожалуйста, войдите в систему для добавления организации');
+                        authModal.classList.add('active');
+                        return;
+                    }
+                    addNkoModal.classList.add('active');
+                });
+
+                // Help button
+                helpBtn.addEventListener('click', () => {
+                    console.log('🎯 Help button clicked');
+                    alert(`Добро пожаловать на Карту добрых дел!\n\n
 • Используйте фильтры для поиска организаций по городу и категории
 • Нажмите на метку на карте или организацию в списке для подробной информации
 • Для добавления своей организации войдите в систему\n\n
 Города присутствия Росатома: ${CONFIG.CITIES.length} городов`);
-            });
+                });
 
-            // Modal close events
-            authModal.addEventListener('click', (e) => {
-                if (e.target === e.currentTarget) {
-                    e.currentTarget.classList.remove('active');
-                }
-            });
-
-            addNkoModal.addEventListener('click', (e) => {
-                if (e.target === e.currentTarget) {
-                    e.currentTarget.classList.remove('active');
-                }
-            });
-
-            cancelAddNko.addEventListener('click', () => {
-                addNkoModal.classList.remove('active');
-            });
-
-            closeCard.addEventListener('click', () => {
-                document.getElementById('nkoCard').classList.remove('active');
-            });
-
-            // Tab switching
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    
-                    const nameFields = document.getElementById('nameFields');
-                    const modalTitle = document.getElementById('modalTitle');
-                    const submitAuth = document.getElementById('submitAuth');
-                    
-                    if (tab.dataset.tab === 'register') {
-                        nameFields.style.display = 'block';
-                        modalTitle.textContent = 'Регистрация';
-                        submitAuth.textContent = 'Зарегистрироваться';
-                    } else {
-                        nameFields.style.display = 'none';
-                        modalTitle.textContent = 'Вход в аккаунт';
-                        submitAuth.textContent = 'Войти';
+                // Modal close events
+                authModal.addEventListener('click', (e) => {
+                    if (e.target === e.currentTarget) {
+                        e.currentTarget.classList.remove('active');
                     }
                 });
-            });
 
-            // Form submissions
-            authForm.addEventListener('submit', app.handleAuth);
-            addNkoForm.addEventListener('submit', app.handleAddNPO);
-
-            // Filters
-            if (searchInput) {
-                searchInput.addEventListener('input', app.applyFilters);
-            }
-            
-            if (citySelect) {
-                citySelect.addEventListener('change', app.applyFilters);
-            }
-
-            // Category checkboxes (назначаем позже, когда они будут созданы)
-            setTimeout(() => {
-                document.querySelectorAll('input[name="category"]').forEach(checkbox => {
-                    checkbox.addEventListener('change', app.applyFilters);
+                addNkoModal.addEventListener('click', (e) => {
+                    if (e.target === e.currentTarget) {
+                        e.currentTarget.classList.remove('active');
+                    }
                 });
-            }, 500);
 
-            // Mobile sidebar toggle
-            if (toggleSidebar) {
-                toggleSidebar.addEventListener('click', () => {
-                    document.querySelector('.sidebar').classList.toggle('active');
+                cancelAddNko.addEventListener('click', () => {
+                    addNkoModal.classList.remove('active');
                 });
+
+                closeCard.addEventListener('click', () => {
+                    document.getElementById('nkoCard').classList.remove('active');
+                });
+
+                // Profile modal close
+                closeProfileModal.addEventListener('click', () => {
+                    document.getElementById('profileModal').classList.remove('active');
+                });
+
+                // Admin modal close
+                closeAdminModal.addEventListener('click', () => {
+                    document.getElementById('adminModal').classList.remove('active');
+                });
+
+                // Tab switching
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        
+                        const nameFields = document.getElementById('nameFields');
+                        const modalTitle = document.getElementById('modalTitle');
+                        const submitAuth = document.getElementById('submitAuth');
+                        
+                        if (tab.dataset.tab === 'register') {
+                            nameFields.style.display = 'block';
+                            modalTitle.textContent = 'Регистрация';
+                            submitAuth.textContent = 'Зарегистрироваться';
+                        } else {
+                            nameFields.style.display = 'none';
+                            modalTitle.textContent = 'Вход в аккаунт';
+                            submitAuth.textContent = 'Войти';
+                        }
+                    });
+                });
+
+                // Admin tabs
+                adminTabs.forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        const tabName = tab.dataset.tab;
+                        
+                        // Update tabs
+                        document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        
+                        // Update content
+                        document.querySelectorAll('.admin-tab-content').forEach(content => {
+                            content.classList.remove('active');
+                        });
+                        document.getElementById(`${tabName}Tab`).classList.add('active');
+                        
+                        // Load data for tab if needed
+                        if (tabName === 'users') {
+                            this.loadUsersTab();
+                        }
+                    });
+                });
+
+                // Form submissions
+                authForm.addEventListener('submit', app.handleAuth);
+                addNkoForm.addEventListener('submit', app.handleAddNPO);
+
+                // Filters
+                if (searchInput) {
+                    searchInput.addEventListener('input', app.applyFilters);
+                }
+                
+                if (citySelect) {
+                    citySelect.addEventListener('change', app.applyFilters);
+                }
+
+                // Category checkboxes (assign later when they are created)
+                setTimeout(() => {
+                    document.querySelectorAll('input[name="category"]').forEach(checkbox => {
+                        checkbox.addEventListener('change', app.applyFilters);
+                    });
+                }, 500);
+
+                // Mobile sidebar toggle
+                if (toggleSidebar) {
+                    toggleSidebar.addEventListener('click', () => {
+                        document.querySelector('.sidebar').classList.toggle('active');
+                    });
+                }
+
+                // Close modals on outside click
+                document.getElementById('profileModal').addEventListener('click', (e) => {
+                    if (e.target === e.currentTarget) {
+                        e.currentTarget.classList.remove('active');
+                    }
+                });
+
+                document.getElementById('adminModal').addEventListener('click', (e) => {
+                    if (e.target === e.currentTarget) {
+                        e.currentTarget.classList.remove('active');
+                    }
+                });
+
+                console.log('✅ Event listeners setup completed');
+                
+            } else if (retries < maxRetries) {
+                retries++;
+                console.log(`🕒 Some elements not found, retry ${retries}/${maxRetries}...`);
+                setTimeout(trySetup, 300);
+            } else {
+                console.error('❌ Failed to setup event listeners after retries');
             }
+        };
+        
+        trySetup();
+    },
 
-            console.log('✅ Event listeners setup completed');
+    populateCities() {
+        const maxRetries = 10;
+        let retries = 0;
+        
+        const tryPopulate = () => {
+            const citySelect = document.getElementById('citySelect');
+            const nkoCitySelect = document.getElementById('nkoCity');
             
-        } else if (retries < maxRetries) {
-            retries++;
-            console.log(`🕒 Some elements not found, retry ${retries}/${maxRetries}...`);
-            console.log('Missing elements:', {
-                loginBtn: !!loginBtn,
-                addNkoBtn: !!addNkoBtn,
-                helpBtn: !!helpBtn,
-                authModal: !!authModal,
-                addNkoModal: !!addNkoModal
-            });
-            setTimeout(trySetup, 300);
-        } else {
-            console.error('❌ Failed to setup event listeners after retries');
-            console.log('Final element status:', {
-                loginBtn: !!loginBtn,
-                addNkoBtn: !!addNkoBtn,
-                helpBtn: !!helpBtn,
-                authModal: !!authModal,
-                addNkoModal: !!addNkoModal
-            });
-        }
-    };
-    
-    trySetup();
-},
+            if (citySelect && nkoCitySelect) {
+                console.log('✅ Found city select elements, populating...');
+                
+                CONFIG.CITIES.forEach(city => {
+                    const option = `<option value="${city}">${city}</option>`;
+                    citySelect.innerHTML += option;
+                    nkoCitySelect.innerHTML += option;
+                });
+                
+                console.log('✅ Cities populated successfully');
+            } else if (retries < maxRetries) {
+                retries++;
+                console.log(`🕒 City elements not found, retry ${retries}/${maxRetries}...`);
+                setTimeout(tryPopulate, 200);
+            } else {
+                console.error('❌ Failed to find city elements after retries');
+            }
+        };
+        
+        tryPopulate();
+    },
 
+    populateCategories() {
+        const maxRetries = 10;
+        let retries = 0;
+        
+        const tryPopulate = () => {
+            const categoryFilter = document.getElementById('categoryFilter');
+            const nkoCategorySelect = document.getElementById('nkoCategory');
+            
+            if (categoryFilter && nkoCategorySelect) {
+                console.log('✅ Found category elements, populating...');
+                
+                CONFIG.CATEGORIES.forEach(category => {
+                    // Filter checkboxes
+                    categoryFilter.innerHTML += `
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="category" value="${category}" checked>
+                            <span>${category}</span>
+                        </label>
+                    `;
+
+                    // Form select option
+                    nkoCategorySelect.innerHTML += `<option value="${category}">${category}</option>`;
+                });
+                
+                console.log('✅ Categories populated successfully');
+            } else if (retries < maxRetries) {
+                retries++;
+                console.log(`🕒 Category elements not found, retry ${retries}/${maxRetries}...`);
+                setTimeout(tryPopulate, 200);
+            } else {
+                console.error('❌ Failed to find category elements after retries');
+            }
+        };
+        
+        tryPopulate();
+    },
+
+    // Update auth UI with profile and admin access
     updateAuthUI() {
         const loginBtn = document.getElementById('loginBtn');
         const addNkoBtn = document.getElementById('addNkoBtn');
 
         if (state.currentUser) {
-            loginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName}`;
-            loginBtn.onclick = () => {
-                if (confirm('Вы хотите выйти из системы?')) {
-                    app.logout();
-                }
-            };
+            // Show username and add menu
+            if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
+                loginBtn.innerHTML = `<i class="fas fa-crown"></i> ${state.currentUser.firstName}`;
+            } else {
+                loginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName}`;
+            }
+            
+            loginBtn.onclick = () => this.showUserMenu();
             addNkoBtn.disabled = false;
         } else {
             loginBtn.innerHTML = '<i class="fas fa-user"></i> Войти';
@@ -428,16 +520,272 @@ const uiController = {
         }
     },
 
+    // Show user menu
+    showUserMenu() {
+        if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
+            if (confirm('Открыть личный кабинет или админ панель?')) {
+                this.showAdminPanel();
+            } else {
+                this.showProfile();
+            }
+        } else {
+            this.showProfile();
+        }
+    },
+
+    // Show profile modal
+    async showProfile() {
+        try {
+            const [profileResponse, statsResponse, nposResponse] = await Promise.all([
+                apiService.getProfile(),
+                apiService.getProfileStats(),
+                apiService.getUserNPOs()
+            ]);
+            
+            if (profileResponse.success && statsResponse.success && nposResponse.success) {
+                this.renderProfile(profileResponse.user, statsResponse.data, nposResponse.data);
+                document.getElementById('profileModal').classList.add('active');
+            }
+        } catch (error) {
+            console.error('Error loading profile:', error);
+            alert('Ошибка загрузки профиля');
+        }
+    },
+
+    // Render profile data
+    renderProfile(user, stats, npos) {
+        document.getElementById('profileName').textContent = `${user.firstName} ${user.lastName}`;
+        document.getElementById('profileEmail').textContent = user.email;
+        
+        const roleElement = document.getElementById('profileRole');
+        roleElement.textContent = user.role === 'admin' ? 'Администратор' : 'Пользователь';
+        roleElement.className = `user-role role-${user.role}`;
+        
+        document.getElementById('statTotal').textContent = stats.totalNPOs;
+        document.getElementById('statApproved').textContent = stats.approvedNPOs;
+        document.getElementById('statPending').textContent = stats.pendingNPOs;
+        
+        this.renderUserNPOs(npos.data || npos);
+    },
+
+    // Render user's NPOs
+    renderUserNPOs(npos) {
+        const container = document.getElementById('userNposList');
+        
+        if (!npos || npos.length === 0) {
+            container.innerHTML = '<div class="no-data">У вас пока нет организаций</div>';
+            return;
+        }
+
+        container.innerHTML = npos.map(npo => `
+            <div class="user-npo-item">
+                <div class="user-npo-header">
+                    <div class="user-npo-name">${npo.name}</div>
+                    <span class="status-badge status-${npo.status}">
+                        ${this.getStatusText(npo.status)}
+                    </span>
+                </div>
+                <div class="user-npo-description">${npo.description}</div>
+                <div class="user-npo-date">
+                    Создано: ${new Date(npo.createdAt).toLocaleDateString('ru-RU')}
+                    ${npo.moderatedAt ? ` • Модерация: ${new Date(npo.moderatedAt).toLocaleDateString('ru-RU')}` : ''}
+                </div>
+                ${npo.rejectionReason ? `
+                    <div class="rejection-reason">
+                        <strong>Причина отклонения:</strong> ${npo.rejectionReason}
+                    </div>
+                ` : ''}
+            </div>
+        `).join('');
+    },
+
+    // Show admin panel
+    async showAdminPanel() {
+        try {
+            await this.loadModerationData();
+            document.getElementById('adminModal').classList.add('active');
+        } catch (error) {
+            console.error('Error loading admin panel:', error);
+            alert('Ошибка загрузки админ панели');
+        }
+    },
+
+    // Load moderation data
+    async loadModerationData() {
+        try {
+            const [moderationResponse, statsResponse] = await Promise.all([
+                apiService.getModerationNPOs('pending'),
+                apiService.getAdminStats()
+            ]);
+
+            if (moderationResponse.success) {
+                this.renderModerationList(moderationResponse.data);
+                document.getElementById('pendingCount').textContent = `${moderationResponse.total} на проверке`;
+            }
+
+            if (statsResponse.success) {
+                this.renderAdminStats(statsResponse.data);
+            }
+        } catch (error) {
+            console.error('Error loading moderation data:', error);
+        }
+    },
+
+    // Render moderation list
+    renderModerationList(npos) {
+        const container = document.getElementById('moderationList');
+        
+        if (!npos || npos.length === 0) {
+            container.innerHTML = '<div class="no-data">Нет организаций на модерации</div>';
+            return;
+        }
+
+        container.innerHTML = npos.map(npo => `
+            <div class="moderation-item" data-npo-id="${npo.id}">
+                <div class="moderation-item-header">
+                    <div class="moderation-item-info">
+                        <h4>${npo.name}</h4>
+                        <div class="moderation-item-meta">
+                            <strong>Категория:</strong> ${npo.category} • 
+                            <strong>Город:</strong> ${npo.city}<br>
+                            <strong>Автор:</strong> ${npo.creator?.firstName || ''} ${npo.creator?.lastName || ''} ${npo.creator?.email ? `(${npo.creator.email})` : ''}<br>
+                            <strong>Создано:</strong> ${new Date(npo.createdAt).toLocaleDateString('ru-RU')}
+                        </div>
+                    </div>
+                </div>
+                <div class="moderation-item-content">
+                    <p><strong>Описание:</strong> ${npo.description}</p>
+                    <p><strong>Волонтерская деятельность:</strong> ${npo.volunteerActivities}</p>
+                    ${npo.phone ? `<p><strong>Телефон:</strong> ${npo.phone}</p>` : ''}
+                    ${npo.website ? `<p><strong>Сайт:</strong> ${npo.website}</p>` : ''}
+                    <p><strong>Адрес:</strong> ${npo.address}</p>
+                </div>
+                <div class="moderation-actions">
+                    <button class="btn btn-success btn-sm" onclick="uiController.approveNPO(${npo.id})">
+                        <i class="fas fa-check"></i> Одобрить
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="uiController.showRejectForm(${npo.id})">
+                        <i class="fas fa-times"></i> Отклонить
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    // Render admin statistics
+    renderAdminStats(stats) {
+        if (!stats) return;
+        
+        document.getElementById('adminTotalNPOs').textContent = stats.npos?.total || 0;
+        document.getElementById('adminApprovedNPOs').textContent = stats.npos?.approved || 0;
+        document.getElementById('adminPendingNPOs').textContent = stats.npos?.pending || 0;
+        document.getElementById('adminTotalUsers').textContent = stats.users?.total || 0;
+    },
+
+    // Approve NPO
+    async approveNPO(npoId) {
+        if (!confirm('Одобрить эту организацию?')) return;
+
+        try {
+            const response = await apiService.approveNPO(npoId);
+
+            if (response.success) {
+                alert('Организация одобрена!');
+                await this.loadModerationData();
+            }
+        } catch (error) {
+            console.error('Error approving NPO:', error);
+            alert('Ошибка при одобрении организации');
+        }
+    },
+
+    // Show reject form
+    showRejectForm(npoId) {
+        const reason = prompt('Укажите причину отклонения:');
+        if (reason && reason.trim()) {
+            this.rejectNPO(npoId, reason.trim());
+        }
+    },
+
+    // Reject NPO
+    async rejectNPO(npoId, reason) {
+        try {
+            const response = await apiService.rejectNPO(npoId, reason);
+
+            if (response.success) {
+                alert('Организация отклонена!');
+                await this.loadModerationData();
+            }
+        } catch (error) {
+            console.error('Error rejecting NPO:', error);
+            alert('Ошибка при отклонении организации');
+        }
+    },
+
+    // Load users tab
+    async loadUsersTab() {
+        try {
+            const response = await apiService.getUsers();
+            if (response.success) {
+                this.renderUsersList(response.data);
+            }
+        } catch (error) {
+            console.error('Error loading users:', error);
+            document.getElementById('usersList').innerHTML = '<div class="error">Ошибка загрузки пользователей</div>';
+        }
+    },
+
+    // Render users list
+    renderUsersList(users) {
+        const container = document.getElementById('usersList');
+        
+        if (!users || users.length === 0) {
+            container.innerHTML = '<div class="no-data">Нет пользователей</div>';
+            return;
+        }
+
+        container.innerHTML = users.map(user => `
+            <div class="user-item">
+                <div class="user-info">
+                    <h4>${user.firstName} ${user.lastName}</h4>
+                    <div class="user-meta">
+                        ${user.email} • 
+                        <span class="user-role role-${user.role}">
+                            ${user.role === 'admin' ? 'Администратор' : 'Пользователь'}
+                        </span> • 
+                        Зарегистрирован: ${new Date(user.createdAt).toLocaleDateString('ru-RU')}
+                    </div>
+                </div>
+                <div class="user-actions">
+                    <span class="status-badge ${user.isVerified ? 'status-approved' : 'status-pending'}">
+                        ${user.isVerified ? 'Подтвержден' : 'Не подтвержден'}
+                    </span>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    // Get status text
+    getStatusText(status) {
+        const statusMap = {
+            'pending': 'На модерации',
+            'approved': 'Одобрено',
+            'rejected': 'Отклонено'
+        };
+        return statusMap[status] || status;
+    },
+
+    // Render NPO list in sidebar
     renderNPOList(npos) {
         const nkoList = document.getElementById('nkoList');
-
-        if (npos.length === 0) {
+        
+        if (!npos || npos.length === 0) {
             nkoList.innerHTML = '<div class="loading">Организации не найдены</div>';
             return;
         }
 
         nkoList.innerHTML = npos.map(npo => `
-            <div class="nko-item" data-npo-id="${npo._id}">
+            <div class="nko-item" data-npo-id="${npo.id}">
                 <div class="nko-name">${npo.name}</div>
                 <div class="nko-category">${npo.category} • ${npo.city}</div>
                 <div class="nko-description">${npo.description}</div>
@@ -448,7 +796,7 @@ const uiController = {
         nkoList.querySelectorAll('.nko-item').forEach(item => {
             item.addEventListener('click', () => {
                 const npoId = item.dataset.npoId;
-                const npo = npos.find(n => n._id === npoId);
+                const npo = npos.find(n => n.id == npoId);
                 if (npo) {
                     app.showNpoCard(npoId);
                     mapService.setView(npo.lat, npo.lng);
@@ -457,6 +805,7 @@ const uiController = {
         });
     },
 
+    // Show NPO card with details
     showNPOCard(npo) {
         const card = document.getElementById('nkoCard');
         document.getElementById('cardTitle').textContent = npo.name;
@@ -470,17 +819,15 @@ const uiController = {
         // Social links
         const socialContainer = document.getElementById('cardSocial');
         socialContainer.innerHTML = '';
-
-        if (npo.social) {
-            if (npo.social.vk) {
-                socialContainer.innerHTML += `<a href="${npo.social.vk}" class="social-link" target="_blank"><i class="fab fa-vk"></i></a>`;
-            }
-            if (npo.social.telegram) {
-                socialContainer.innerHTML += `<a href="${npo.social.telegram}" class="social-link" target="_blank"><i class="fab fa-telegram"></i></a>`;
-            }
-            if (npo.social.instagram) {
-                socialContainer.innerHTML += `<a href="${npo.social.instagram}" class="social-link" target="_blank"><i class="fab fa-instagram"></i></a>`;
-            }
+        
+        if (npo.social_vk) {
+            socialContainer.innerHTML += `<a href="${npo.social_vk}" class="social-link" target="_blank"><i class="fab fa-vk"></i></a>`;
+        }
+        if (npo.social_telegram) {
+            socialContainer.innerHTML += `<a href="${npo.social_telegram}" class="social-link" target="_blank"><i class="fab fa-telegram"></i></a>`;
+        }
+        if (npo.social_instagram) {
+            socialContainer.innerHTML += `<a href="${npo.social_instagram}" class="social-link" target="_blank"><i class="fab fa-instagram"></i></a>`;
         }
 
         card.classList.add('active');
@@ -491,19 +838,25 @@ const uiController = {
 const app = {
     async init() {
         try {
+            console.log('🔧 Initializing application...');
+            
             // Initialize services
             mapService.init();
             uiController.init();
+            
+            console.log('✅ UI initialized');
 
             // Check authentication
             await this.checkAuth();
+            console.log('✅ Auth check completed');
 
             // Load NPOs
             await this.loadNPOs();
+            console.log('✅ NPOs loaded');
 
-            console.log('🚀 NKO Map application initialized');
+            console.log('🚀 NKO Map application initialized successfully');
         } catch (error) {
-            console.error('Application initialization error:', error);
+            console.error('❌ Application initialization error:', error);
         }
     },
 
@@ -524,45 +877,49 @@ const app = {
         try {
             const result = await apiService.getNPOs(filters);
             state.npos = result.data;
-
+            
             uiController.renderNPOList(state.npos);
             mapService.updateMarkers(state.npos);
         } catch (error) {
             console.error('Error loading NPOs:', error);
-            document.getElementById('nkoList').innerHTML =
+            document.getElementById('nkoList').innerHTML = 
                 '<div class="loading error">Ошибка загрузки организаций</div>';
         }
     },
 
     async handleAuth(e) {
         e.preventDefault();
-
+        
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         const isRegister = document.querySelector('.tab[data-tab="register"]').classList.contains('active');
-
+        
         try {
             let result;
-
+            
             if (isRegister) {
                 const firstName = document.getElementById('firstName').value;
                 const lastName = document.getElementById('lastName').value;
-
+                
                 result = await apiService.register({ email, password, firstName, lastName });
             } else {
                 result = await apiService.login({ email, password });
             }
-
+            
             if (result.success) {
                 state.authToken = result.token;
                 state.currentUser = result.user;
-
+                
                 // Save token to localStorage
                 localStorage.setItem('authToken', state.authToken);
-
+                
                 uiController.updateAuthUI();
-
-                alert(result.message);
+                
+                // Show success message with role info
+                const roleMessage = state.currentUser.role === 'admin' ? 
+                    ' (Администратор)' : '';
+                alert(`${result.message}${roleMessage}`);
+                
                 document.getElementById('authModal').classList.remove('active');
                 document.getElementById('authForm').reset();
             }
@@ -573,31 +930,33 @@ const app = {
 
     async handleAddNPO(e) {
         e.preventDefault();
-
+        
         const formData = new FormData(e.target);
         const npoData = {
-            name: formData.get('nkoName'),
-            category: formData.get('nkoCategory'),
-            description: formData.get('nkoDescription'),
-            volunteerActivities: formData.get('nkoVolunteer'),
-            city: formData.get('nkoCity'),
-            address: formData.get('nkoAddress'),
-            phone: formData.get('nkoPhone'),
-            website: formData.get('nkoWebsite'),
+            name: document.getElementById('nkoName').value,
+            category: document.getElementById('nkoCategory').value,
+            description: document.getElementById('nkoDescription').value,
+            volunteerActivities: document.getElementById('nkoVolunteer').value,
+            city: document.getElementById('nkoCity').value,
+            address: document.getElementById('nkoAddress').value,
+            phone: document.getElementById('nkoPhone').value,
+            website: document.getElementById('nkoWebsite').value,
             lat: 55.75, // In real app, get from map picker
             lng: 37.62  // In real app, get from map picker
         };
-
+        
         try {
             const result = await apiService.createNPO(npoData);
-
+            
             if (result.success) {
                 alert(result.message);
                 document.getElementById('addNkoModal').classList.remove('active');
                 document.getElementById('addNkoForm').reset();
-
-                // Reload NPOs to show the new one (if approved)
-                await this.loadNPOs();
+                
+                // Reload user's NPOs if profile is open
+                if (document.getElementById('profileModal').classList.contains('active')) {
+                    uiController.showProfile();
+                }
             }
         } catch (error) {
             alert(error.message || 'Произошла ошибка при добавлении организации');
@@ -616,7 +975,7 @@ const app = {
     },
 
     showNpoCard(npoId) {
-        const npo = state.npos.find(n => n._id === npoId);
+        const npo = state.npos.find(n => n.id == npoId);
         if (npo) {
             state.selectedNPO = npo;
             uiController.showNPOCard(npo);
@@ -632,10 +991,23 @@ const app = {
     }
 };
 
+// Debug: Check that script is loaded
+console.log('🚀 script.js loaded successfully');
+
+// Debug: Check function availability
+console.log('🔧 Functions available:', {
+    uiController: typeof uiController,
+    app: typeof app,
+    mapService: typeof mapService,
+    apiService: typeof apiService
+});
+
 // Initialize application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('✅ DOM fully loaded');
     app.init();
 });
 
 // Make app globally available for HTML onclick handlers
 window.app = app;
+window.uiController = uiController;

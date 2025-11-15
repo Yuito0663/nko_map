@@ -27,5 +27,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "scripts": {
+  "create-admin": "node scripts/createAdmin.js"
+}
 }

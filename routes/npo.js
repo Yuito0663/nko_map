@@ -1,76 +1,38 @@
 import express from 'express';
-import jwt from 'jsonwebtoken';
+import NPO from '../models/NPO.js';
+import { auth } from '../middleware/auth.js';
+import { Op } from 'sequelize';
 
 const router = express.Router();
-
-// In-memory storage for demo
-let npos = [
-  {
-    id: 1,
-    name: "ЭкоДом",
-    category: "Экология",
-    description: "Занимаемся раздельным сбором мусора и организацией экологических акций в городе.",
-    volunteerActivities: "Помощь в организации акций, сортировка отходов, просветительская деятельность.",
-    phone: "+7 (495) 123-45-67",
-    address: "ул. Зеленая, д. 15, Ангарск",
-    city: "Ангарск",
-    lat: 52.5,
-    lng: 103.9,
-    website: "https://ecodom.ru",
-    social_vk: "https://vk.com/ecodom",
-    social_telegram: "https://t.me/ecodom",
-    social_instagram: "https://instagram.com/ecodom",
-    status: "approved",
-    createdBy: 1,
-    createdAt: new Date()
-  },
-  {
-    id: 2,
-    name: "Лапа помощи",
-    category: "Помощь животным", 
-    description: "Приют для бездомных животных, поиск новых хозяев для питомцев.",
-    volunteerActivities: "Выгул животных, помощь в уборке, организация мероприятий по пристройству.",
-    phone: "+7 (495) 234-56-78",
-    address: "ул. Дружбы, д. 42, Балаково",
-    city: "Балаково",
-    lat: 52.0,
-    lng: 47.8,
-    website: "https://pawhelp.ru",
-    social_vk: "https://vk.com/pawhelp",
-    social_instagram: "https://instagram.com/pawhelp",
-    status: "approved",
-    createdBy: 1,
-    createdAt: new Date()
-  }
-];
 
 // Get all approved NPOs with filtering
 router.get('/', async (req, res) => {
   try {
     const { city, category, search } = req.query;
+    const where = { status: 'approved' };
+
+    if (city) where.city = city;
+    if (category) where.category = category;
     
-    let filteredNpos = npos.filter(npo => npo.status === 'approved');
-
-    if (city) {
-      filteredNpos = filteredNpos.filter(npo => npo.city === city);
-    }
-
-    if (category) {
-      filteredNpos = filteredNpos.filter(npo => npo.category === category);
-    }
-
+    let searchCondition = {};
     if (search) {
-      const searchLower = search.toLowerCase();
-      filteredNpos = filteredNpos.filter(npo => 
-        npo.name.toLowerCase().includes(searchLower) ||
-        npo.description.toLowerCase().includes(searchLower)
-      );
+      searchCondition = {
+        [Op.or]: [
+          { name: { [Op.iLike]: `%${search}%` } },
+          { description: { [Op.iLike]: `%${search}%` } }
+        ]
+      };
     }
+
+    const npos = await NPO.findAll({
+      where: { ...where, ...searchCondition },
+      order: [['createdAt', 'DESC']]
+    });
 
     res.json({
       success: true,
-      count: filteredNpos.length,
-      data: filteredNpos
+      count: npos.length,
+      data: npos
     });
   } catch (error) {
     console.error('Get NPOs error:', error);
@@ -81,33 +43,21 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Create new NPO
-router.post('/', async (req, res) => {
+// Create new NPO (requires auth)
+router.post('/', auth, async (req, res) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'Требуется авторизация'
-      });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
     const npoData = {
       ...req.body,
-      id: npos.length + 1,
-      createdBy: decoded.userId,
-      status: 'pending',
-      createdAt: new Date()
+      createdBy: req.user.userId,
+      status: 'pending' // Все новые НКО требуют модерации
     };
 
-    npos.push(npoData);
+    const npo = await NPO.create(npoData);
 
     res.status(201).json({
       success: true,
-      message: 'Организация отправлена на модерацию',
-      data: npoData
+      message: 'Организация отправлена на модерацию. Вы получите уведомление после проверки.',
+      data: npo
     });
   } catch (error) {
     console.error('Create NPO error:', error);

@@ -571,3 +571,288 @@ header {
     font-size: 14px;
     margin-top: 5px;
 }
+
+/* Profile Styles */
+.profile-content {
+    padding: 0;
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    margin: -30px -30px 20px -30px;
+    border-radius: 8px 8px 0 0;
+}
+
+.avatar {
+    font-size: 48px;
+    margin-right: 15px;
+}
+
+.profile-info h3 {
+    margin: 0 0 5px 0;
+    font-size: 20px;
+}
+
+.profile-info p {
+    margin: 0;
+    opacity: 0.9;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.stat-card {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+}
+
+.stat-number {
+    font-size: 24px;
+    font-weight: bold;
+    color: #007bff;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #6c757d;
+    text-transform: uppercase;
+}
+
+.profile-section {
+    margin-top: 25px;
+}
+
+.profile-section h4 {
+    margin-bottom: 15px;
+    color: #333;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 8px;
+}
+
+.user-npos {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.user-npo-item {
+    background: #f8f9fa;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+.user-npo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.user-npo-name {
+    font-weight: bold;
+    color: #333;
+}
+
+.user-npo-date {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.user-npo-description {
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Admin Panel Styles */
+.admin-modal {
+    max-width: 900px;
+    max-height: 90vh;
+}
+
+.admin-tabs {
+    display: flex;
+    border-bottom: 1px solid #dee2e6;
+    margin: 0 -30px 20px -30px;
+    padding: 0 30px;
+}
+
+.admin-tab {
+    padding: 12px 20px;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s;
+    font-weight: 500;
+}
+
+.admin-tab.active {
+    border-bottom-color: #007bff;
+    color: #007bff;
+}
+
+.admin-tab-content {
+    display: none;
+}
+
+.admin-tab-content.active {
+    display: block;
+}
+
+.moderation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.moderation-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.moderation-item {
+    background: #f8f9fa;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.moderation-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.moderation-item-info h4 {
+    margin: 0 0 5px 0;
+    color: #333;
+}
+
+.moderation-item-meta {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.moderation-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.admin-stats {
+    margin-top: 20px;
+}
+
+.users-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.user-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: #f8f9fa;
+    margin-bottom: 10px;
+    border-radius: 8px;
+}
+
+.user-info h4 {
+    margin: 0 0 5px 0;
+}
+
+.user-meta {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+/* Status badges */
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-pending {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.status-approved {
+    background-color: #28a745;
+    color: #fff;
+}
+
+.status-rejected {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+.user-role {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.role-user {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+.role-admin {
+    background-color: #007bff;
+    color: #fff;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge.pending {
+    background-color: #ffc107;
+    color: #000;
+}
+
+/* Close modal button */
+.close-modal {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #6c757d;
+    padding: 5px;
+}
+
+.close-modal:hover {
+    color: #333;
+}

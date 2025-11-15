@@ -6,6 +6,8 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import profileRoutes from './routes/profile.js';
+import adminRoutes from './routes/admin.js';
 
 // ES modules fix for __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -121,6 +123,9 @@ app.use((err, req, res, next) => {
     message: process.env.NODE_ENV === 'production' ? 'Внутренняя ошибка сервера' : err.message
   });
 });
+
+app.use('/api/profile', profileRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {

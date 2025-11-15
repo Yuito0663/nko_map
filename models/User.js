@@ -28,18 +28,25 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: false
   },
-  nkoId: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    defaultValue: null
-  },
   role: {
-    type: DataTypes.ENUM('user', 'admin', 'moderator'),
+    type: DataTypes.ENUM('user', 'admin'),
     defaultValue: 'user'
   },
   isVerified: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
+  },
+  phone: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  avatar: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  lastLogin: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
   tableName: 'users',
@@ -63,6 +70,11 @@ const User = sequelize.define('User', {
 // Instance method to check password
 User.prototype.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Check if user is admin
+User.prototype.isAdmin = function() {
+  return this.role === 'admin';
 };
 
 // Remove password from JSON output
