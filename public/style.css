@@ -262,6 +262,29 @@ header {
     height: 25px;
 }
 
+/* Яндекс.Карты */
+#map {
+    height: 100%;
+    width: 100%;
+    position: relative;
+}
+
+/* Убедитесь, что контейнер карты чист */
+.map-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Скрываем стандартный балун если нужно */
+.ymaps-2-1-79-balloon {
+    display: none;
+}
+
+.ymaps-2-1-79-balloon__close-button {
+    display: none;
+}
+
 /* Auth Modal */
 .modal {
     display: none;

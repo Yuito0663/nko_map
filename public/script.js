@@ -166,113 +166,178 @@ const apiService = {
 };
 
 // Map service for Yandex Maps
+// Map service for Yandex Maps
 const mapService = {
     map: null,
-    markers: [],
     objectManager: null,
+    isInitialized: false,
 
     init() {
-        // Initialize Yandex Map
+        // Ждем загрузки Яндекс.Карт
+        if (typeof ymaps === 'undefined') {
+            console.error('❌ Yandex Maps not loaded');
+            setTimeout(() => this.init(), 500);
+            return;
+        }
+
         ymaps.ready(() => {
             console.log('🗺️ Initializing Yandex Map...');
             
-            this.map = new ymaps.Map('map', {
-                center: [55.75, 37.62],
-                zoom: 5,
-                controls: ['zoomControl', 'fullscreenControl']
-            });
+            // Очищаем контейнер карты на всякий случай
+            const mapContainer = document.getElementById('map');
+            mapContainer.innerHTML = '';
 
-            // Create object manager for markers
-            this.objectManager = new ymaps.ObjectManager({
-                clusterize: true,
-                gridSize: 32,
-                clusterDisableClickZoom: true
-            });
+            try {
+                this.map = new ymaps.Map('map', {
+                    center: [55.75, 37.62],
+                    zoom: 5,
+                    controls: ['zoomControl', 'fullscreenControl']
+                }, {
+                    suppressMapOpenBlock: true
+                });
 
-            this.objectManager.objects.options.set({
-                preset: 'islands#blueCircleIcon',
-                iconColor: '#006CB7'
-            });
+                // Создаем ObjectManager для эффективного управления метками
+                this.objectManager = new ymaps.ObjectManager({
+                    clusterize: true,
+                    gridSize: 64,
+                    clusterDisableClickZoom: false,
+                    clusterIconColor: '#006CB7'
+                });
 
-            this.objectManager.clusters.options.set({
-                preset: 'islands#blueClusterIcons'
-            });
+                // Настройки для отдельных меток
+                this.objectManager.objects.options.set({
+                    preset: 'islands#blueCircleDotIcon',
+                    iconColor: '#006CB7',
+                    openBalloonOnClick: true
+                });
 
-            // Add click handler for markers
-            this.objectManager.objects.events.add('click', (e) => {
-                const objectId = e.get('objectId');
-                const npo = state.npos.find(n => n.id == objectId);
-                if (npo) {
-                    app.showNpoCard(npo.id);
-                }
-            });
+                // Настройки для кластеров
+                this.objectManager.clusters.options.set({
+                    preset: 'islands#blueClusterIcons',
+                    openBalloonOnClick: true
+                });
 
-            this.map.geoObjects.add(this.objectManager);
-            console.log('✅ Yandex Map initialized');
+                // Обработчик клика по меткам
+                this.objectManager.objects.events.add('click', (e) => {
+                    const objectId = e.get('objectId');
+                    const npo = state.npos.find(n => n.id == objectId);
+                    if (npo) {
+                        this.showNpoDetails(npo);
+                    }
+                });
+
+                // Обработчик клика по кластерам
+                this.objectManager.clusters.events.add('click', (e) => {
+                    const cluster = e.get('target');
+                    this.map.setCenter(cluster.geometry.getCoordinates(), cluster.getZoom() + 2);
+                });
+
+                // Добавляем ObjectManager на карту
+                this.map.geoObjects.add(this.objectManager);
+
+                this.isInitialized = true;
+                console.log('✅ Yandex Map initialized successfully');
+
+            } catch (error) {
+                console.error('❌ Error initializing Yandex Map:', error);
+            }
         });
     },
 
+    // Показать детали НКО при клике на метку
+    showNpoDetails(npo) {
+        app.showNpoCard(npo.id);
+        this.map.balloon.close(); // Закрываем стандартный балун
+    },
+
     addMarker(npo) {
-        if (!this.objectManager) return;
+        if (!this.objectManager || !this.isInitialized) {
+            console.warn('⚠️ Map not ready, skipping marker:', npo.name);
+            return null;
+        }
 
         const marker = {
             type: 'Feature',
             id: npo.id,
             geometry: {
                 type: 'Point',
-                coordinates: [npo.lng, npo.lat]
+                coordinates: [parseFloat(npo.lng), parseFloat(npo.lat)]
             },
             properties: {
-                balloonContent: `
-                    <div style="min-width: 200px; padding: 10px;">
-                        <h4 style="margin: 0 0 8px 0; color: #006CB7;">${npo.name}</h4>
-                        <p style="margin: 0 0 8px 0; font-size: 12px; color: #777;">
-                            <strong>Категория:</strong> ${npo.category}
-                        </p>
-                        <p style="margin: 0 0 12px 0; font-size: 14px;">
-                            ${npo.description.substring(0, 100)}...
-                        </p>
-                        <button class="btn btn-primary" onclick="app.showNpoCard(${npo.id})" 
-                                style="padding: 6px 12px; font-size: 12px; border: none; border-radius: 4px; background: #006CB7; color: white; cursor: pointer;">
+                balloonContentHeader: npo.name,
+                balloonContentBody: `
+                    <div style="max-width: 300px;">
+                        <p><strong>Категория:</strong> ${npo.category}</p>
+                        <p><strong>Город:</strong> ${npo.city}</p>
+                        <p>${npo.description.substring(0, 100)}...</p>
+                        <button onclick="app.showNpoCard(${npo.id})" 
+                                style="padding: 8px 16px; background: #006CB7; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">
                             Подробнее
                         </button>
                     </div>
                 `,
                 hintContent: npo.name,
                 clusterCaption: npo.name
+            },
+            options: {
+                preset: 'islands#blueCircleDotIcon',
+                iconColor: this.getCategoryColor(npo.category)
             }
         };
 
         this.objectManager.add(marker);
-        this.markers.push(marker);
         return marker;
+    },
+
+    // Цвета меток по категориям
+    getCategoryColor(category) {
+        const colors = {
+            'Экология': '#28a745',
+            'Помощь животным': '#ffc107',
+            'Социальная поддержка': '#dc3545',
+            'Образование': '#007bff',
+            'Культура': '#6f42c1',
+            'Спорт': '#fd7e14',
+            'Здравоохранение': '#e83e8c',
+            'Другое': '#6c757d'
+        };
+        return colors[category] || '#006CB7';
     },
 
     clearMarkers() {
         if (this.objectManager) {
             this.objectManager.removeAll();
         }
-        this.markers = [];
     },
 
     updateMarkers(npos) {
+        if (!this.isInitialized) {
+            console.warn('⚠️ Map not initialized, skipping markers update');
+            return;
+        }
+
         this.clearMarkers();
-        npos.forEach(npo => this.addMarker(npo));
+        
+        // Добавляем метки с небольшой задержкой для производительности
+        setTimeout(() => {
+            npos.forEach(npo => this.addMarker(npo));
+            console.log(`📍 Updated ${npos.length} markers on map`);
+        }, 100);
     },
 
     setView(lat, lng, zoom = 13) {
-        if (this.map) {
-            this.map.setCenter([lng, lat], zoom);
+        if (this.map && this.isInitialized) {
+            this.map.setCenter([parseFloat(lng), parseFloat(lat)], zoom);
         }
     },
 
-    // Новый метод для открытия балуна по НКО
+    // Открыть балун для конкретной НКО
     openBalloon(npoId) {
         if (this.objectManager && this.map) {
             const marker = this.objectManager.objects.getById(npoId);
             if (marker) {
                 this.map.balloon.open(marker.geometry.coordinates, {
-                    content: marker.properties.balloonContent
+                    content: marker.properties.balloonContentBody
                 });
             }
         }
@@ -282,18 +347,50 @@ const mapService = {
 // UI Controller
 const uiController = {
     // Initialize UI components
-    init() {
-        console.log('🔧 Initializing UI components...');
+    async init() {
+    try {
+        console.log('🔧 Initializing application...');
         
-        // Wait for DOM to be fully loaded
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                this.delayedInit();
-            });
+        // Сначала инициализируем карту
+        await this.initializeMap();
+        console.log('✅ Map initialized');
+
+        // Затем UI
+        uiController.init();
+        console.log('✅ UI initialized');
+
+        // Проверка аутентификации
+        await this.checkAuth();
+        console.log('✅ Auth check completed');
+
+        // Загрузка НКО
+        await this.loadNPOs();
+        console.log('✅ NPOs loaded');
+
+        console.log('🚀 NKO Map application initialized successfully');
+    } catch (error) {
+        console.error('❌ Application initialization error:', error);
+    }
+},
+
+// Отдельная функция для инициализации карты
+initializeMap() {
+    return new Promise((resolve) => {
+        if (typeof ymaps !== 'undefined') {
+            mapService.init();
+            resolve();
         } else {
-            setTimeout(() => this.delayedInit(), 100);
+            // Ждем загрузки Яндекс.Карт
+            const checkMap = setInterval(() => {
+                if (typeof ymaps !== 'undefined') {
+                    clearInterval(checkMap);
+                    mapService.init();
+                    resolve();
+                }
+            }, 100);
         }
-    },
+    });
+},
 
     delayedInit() {
         console.log('🕒 Delayed UI initialization...');
