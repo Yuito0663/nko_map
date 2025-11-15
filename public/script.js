@@ -1,3 +1,12 @@
+// Debug: Проверка что скрипт загружен
+console.log('🚀 script.js loaded successfully');
+
+// Debug: Проверка доступности функций
+console.log('🔧 Functions available:', {
+    uiController: typeof uiController,
+    app: typeof app,
+    mapService: typeof mapService
+});
 // Configuration
 const CONFIG = {
     API_BASE_URL: window.location.hostname === 'localhost' 
@@ -178,19 +187,14 @@ const uiController = {
     init() {
         console.log('🔧 Initializing UI components...');
         
-        // Ждем пока DOM полностью загрузится
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                this.setupEventListeners();
-                this.populateCities();
-                this.populateCategories();
-            });
-        } else {
-            // DOM уже загружен
-            this.setupEventListeners();
+        // Сначала настраиваем обработчики событий
+        this.setupEventListeners();
+        
+        // Затем заполняем данные (с задержкой)
+        setTimeout(() => {
             this.populateCities();
             this.populateCategories();
-        }
+        }, 100);
     },
 
     populateCities() {
@@ -253,88 +257,157 @@ const uiController = {
 },
 
     setupEventListeners() {
-        // Auth modal
-        document.getElementById('loginBtn').addEventListener('click', () => {
-            document.getElementById('authModal').classList.add('active');
-        });
+    console.log('🔧 Setting up event listeners...');
+    
+    const maxRetries = 10;
+    let retries = 0;
+    
+    const trySetup = () => {
+        // Ищем все необходимые элементы
+        const loginBtn = document.getElementById('loginBtn');
+        const addNkoBtn = document.getElementById('addNkoBtn');
+        const helpBtn = document.getElementById('helpBtn');
+        const authModal = document.getElementById('authModal');
+        const addNkoModal = document.getElementById('addNkoModal');
+        const closeCard = document.getElementById('closeCard');
+        const cancelAddNko = document.getElementById('cancelAddNko');
+        const authForm = document.getElementById('authForm');
+        const addNkoForm = document.getElementById('addNkoForm');
+        const tabs = document.querySelectorAll('.tab');
+        const toggleSidebar = document.querySelector('.toggle-sidebar');
+        const searchInput = document.getElementById('searchInput');
+        const citySelect = document.getElementById('citySelect');
 
-        document.getElementById('addNkoBtn').addEventListener('click', () => {
-            if (!state.currentUser) {
-                alert('Пожалуйста, войдите в систему для добавления организации');
-                document.getElementById('authModal').classList.add('active');
-                return;
-            }
-            document.getElementById('addNkoModal').classList.add('active');
-        });
+        // Проверяем что все основные элементы найдены
+        const essentialElements = [loginBtn, addNkoBtn, helpBtn, authModal, addNkoModal];
+        const allFound = essentialElements.every(element => element !== null);
 
-        // Modal close events
-        document.getElementById('authModal').addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) {
-                e.currentTarget.classList.remove('active');
-            }
-        });
-
-        document.getElementById('addNkoModal').addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) {
-                e.currentTarget.classList.remove('active');
-            }
-        });
-
-        document.getElementById('cancelAddNko').addEventListener('click', () => {
-            document.getElementById('addNkoModal').classList.remove('active');
-        });
-
-        document.getElementById('closeCard').addEventListener('click', () => {
-            document.getElementById('nkoCard').classList.remove('active');
-        });
-
-        // Tab switching
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-
-                const nameFields = document.getElementById('nameFields');
-                const modalTitle = document.getElementById('modalTitle');
-                const submitAuth = document.getElementById('submitAuth');
-
-                if (tab.dataset.tab === 'register') {
-                    nameFields.style.display = 'block';
-                    modalTitle.textContent = 'Регистрация';
-                    submitAuth.textContent = 'Зарегистрироваться';
-                } else {
-                    nameFields.style.display = 'none';
-                    modalTitle.textContent = 'Вход в аккаунт';
-                    submitAuth.textContent = 'Войти';
-                }
+        if (allFound) {
+            console.log('✅ All essential elements found, setting up listeners...');
+            
+            // Auth modal
+            loginBtn.addEventListener('click', () => {
+                console.log('🎯 Login button clicked');
+                authModal.classList.add('active');
             });
-        });
 
-        // Form submissions
-        document.getElementById('authForm').addEventListener('submit', app.handleAuth);
-        document.getElementById('addNkoForm').addEventListener('submit', app.handleAddNPO);
+            addNkoBtn.addEventListener('click', () => {
+                console.log('🎯 Add NKO button clicked');
+                if (!state.currentUser) {
+                    alert('Пожалуйста, войдите в систему для добавления организации');
+                    authModal.classList.add('active');
+                    return;
+                }
+                addNkoModal.classList.add('active');
+            });
 
-        // Filters
-        document.getElementById('searchInput').addEventListener('input', app.applyFilters);
-        document.getElementById('citySelect').addEventListener('change', app.applyFilters);
-        document.querySelectorAll('input[name="category"]').forEach(checkbox => {
-            checkbox.addEventListener('change', app.applyFilters);
-        });
-
-        // Help button
-        document.getElementById('helpBtn').addEventListener('click', () => {
-            alert(`Добро пожаловать на Карту добрых дел!\n\n
+            // Help button
+            helpBtn.addEventListener('click', () => {
+                console.log('🎯 Help button clicked');
+                alert(`Добро пожаловать на Карту добрых дел!\n\n
 • Используйте фильтры для поиска организаций по городу и категории
 • Нажмите на метку на карте или организацию в списке для подробной информации
 • Для добавления своей организации войдите в систему\n\n
 Города присутствия Росатома: ${CONFIG.CITIES.length} городов`);
-        });
+            });
 
-        // Mobile sidebar toggle
-        document.querySelector('.toggle-sidebar').addEventListener('click', () => {
-            document.querySelector('.sidebar').classList.toggle('active');
-        });
-    },
+            // Modal close events
+            authModal.addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) {
+                    e.currentTarget.classList.remove('active');
+                }
+            });
+
+            addNkoModal.addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) {
+                    e.currentTarget.classList.remove('active');
+                }
+            });
+
+            cancelAddNko.addEventListener('click', () => {
+                addNkoModal.classList.remove('active');
+            });
+
+            closeCard.addEventListener('click', () => {
+                document.getElementById('nkoCard').classList.remove('active');
+            });
+
+            // Tab switching
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    const nameFields = document.getElementById('nameFields');
+                    const modalTitle = document.getElementById('modalTitle');
+                    const submitAuth = document.getElementById('submitAuth');
+                    
+                    if (tab.dataset.tab === 'register') {
+                        nameFields.style.display = 'block';
+                        modalTitle.textContent = 'Регистрация';
+                        submitAuth.textContent = 'Зарегистрироваться';
+                    } else {
+                        nameFields.style.display = 'none';
+                        modalTitle.textContent = 'Вход в аккаунт';
+                        submitAuth.textContent = 'Войти';
+                    }
+                });
+            });
+
+            // Form submissions
+            authForm.addEventListener('submit', app.handleAuth);
+            addNkoForm.addEventListener('submit', app.handleAddNPO);
+
+            // Filters
+            if (searchInput) {
+                searchInput.addEventListener('input', app.applyFilters);
+            }
+            
+            if (citySelect) {
+                citySelect.addEventListener('change', app.applyFilters);
+            }
+
+            // Category checkboxes (назначаем позже, когда они будут созданы)
+            setTimeout(() => {
+                document.querySelectorAll('input[name="category"]').forEach(checkbox => {
+                    checkbox.addEventListener('change', app.applyFilters);
+                });
+            }, 500);
+
+            // Mobile sidebar toggle
+            if (toggleSidebar) {
+                toggleSidebar.addEventListener('click', () => {
+                    document.querySelector('.sidebar').classList.toggle('active');
+                });
+            }
+
+            console.log('✅ Event listeners setup completed');
+            
+        } else if (retries < maxRetries) {
+            retries++;
+            console.log(`🕒 Some elements not found, retry ${retries}/${maxRetries}...`);
+            console.log('Missing elements:', {
+                loginBtn: !!loginBtn,
+                addNkoBtn: !!addNkoBtn,
+                helpBtn: !!helpBtn,
+                authModal: !!authModal,
+                addNkoModal: !!addNkoModal
+            });
+            setTimeout(trySetup, 300);
+        } else {
+            console.error('❌ Failed to setup event listeners after retries');
+            console.log('Final element status:', {
+                loginBtn: !!loginBtn,
+                addNkoBtn: !!addNkoBtn,
+                helpBtn: !!helpBtn,
+                authModal: !!authModal,
+                addNkoModal: !!addNkoModal
+            });
+        }
+    };
+    
+    trySetup();
+},
 
     updateAuthUI() {
         const loginBtn = document.getElementById('loginBtn');
