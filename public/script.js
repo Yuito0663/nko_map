@@ -299,43 +299,43 @@ const mapService = {
         }
     },
 
-    updateMarkers(npos) {
-        if (!this.isInitialized) {
-            console.warn('⚠️ Map not initialized, skipping markers update');
-            return;
-        }
+updateMarkers(npos) {
+    if (!this.isInitialized) {
+        console.warn('⚠️ Map not initialized, skipping markers update');
+        return;
+    }
 
-        console.log(`📍 Updating ${npos.length} markers on 2GIS map...`);
-        
-        // Очищаем старые маркеры
-        this.clearMarkers();
+    console.log(`📍 Updating ${npos.length} markers on 2GIS map...`);
+    
+    // Очищаем старые маркеры
+    this.clearMarkers();
 
-        // Добавляем новые маркеры с оптимизацией производительности
-        this.addMarkersWithDelay(npos, 0);
-    },
+    // Добавляем новые маркеры с оптимизацией производительности
+    this.addMarkersWithDelay(npos, 0);
+},
 
-    // Добавление маркеров с задержкой для производительности
-    addMarkersWithDelay(npos, index) {
-        if (index >= npos.length) {
-            console.log(`✅ All ${npos.length} markers added to map`);
-            return;
-        }
+// Добавление маркеров с задержкой для производительности
+addMarkersWithDelay(npos, index) {
+    if (index >= npos.length) {
+        console.log(`✅ All ${npos.length} markers added to map`);
+        return;
+    }
 
-        // Добавляем пачками по 10 маркеров
-        const batchSize = 10;
-        const endIndex = Math.min(index + batchSize, npos.length);
+    // Добавляем пачками по 10 маркеров (меньше для 2ГИС)
+    const batchSize = 10;
+    const endIndex = Math.min(index + batchSize, npos.length);
 
-        for (let i = index; i < endIndex; i++) {
-            this.addMarker(npos[i]);
-        }
+    for (let i = index; i < endIndex; i++) {
+        this.addMarker(npos[i]);
+    }
 
-        // Следующая пачка через 50мс
-        if (endIndex < npos.length) {
-            setTimeout(() => {
-                this.addMarkersWithDelay(npos, endIndex);
-            }, 50);
-        }
-    },
+    // Следующая пачка через 50мс
+    if (endIndex < npos.length) {
+        setTimeout(() => {
+            this.addMarkersWithDelay(npos, endIndex);
+        }, 50);
+    }
+},
 
     setView(lat, lng, zoom = 13) {
         if (this.map && this.isInitialized) {
