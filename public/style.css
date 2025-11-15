@@ -231,28 +231,24 @@ header {
     color: var(--medium-gray);
 }
 
-/* Map Container */
-.map-container {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-}
-
+/* Leaflet Map Styles */
 #map {
     height: 100%;
     width: 100%;
 }
 
-/* Стили для 2ГИС попапов */
-.dg-popup__container {
-    border-radius: 8px !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
+.leaflet-popup-content {
+    margin: 8px 12px;
 }
 
-.dg-popup__close {
-    background: #006CB7 !important;
-    color: white !important;
-    border-radius: 50% !important;
+.leaflet-popup-content-wrapper {
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.custom-marker {
+    background: transparent !important;
+    border: none !important;
 }
 
 /* Кастомные стили для маркеров */

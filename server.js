@@ -20,9 +20,18 @@ const PORT = process.env.PORT || 10000;
 // ✅ FIX: Trust proxy for Render.com
 app.set('trust proxy', 1);
 
-// Security middleware
+// Security middleware для Leaflet
 app.use(helmet({
-  contentSecurityPolicy: false
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://unpkg.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://unpkg.com"],
+      fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+      imgSrc: ["'self'", "data:", "https:", "http:", "blob:", "https://*.tile.openstreetmap.org"],
+      connectSrc: ["'self'", "https://*.tile.openstreetmap.org", "https://*.render.com"]
+    }
+  }
 }));
 
 // Compression middleware

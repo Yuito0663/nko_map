@@ -163,8 +163,7 @@ const apiService = {
     }
 };
 
-// Map service for 2GIS
-// Map service for 2GIS
+// Map service for Leaflet
 const mapService = {
     map: null,
     markers: [],
@@ -172,87 +171,156 @@ const mapService = {
 
     init() {
         try {
-            console.log('🗺️ Initializing 2GIS Map...');
+            console.log('🗺️ Initializing Leaflet Map...');
             
-            // Проверяем загружена ли 2ГИС
-            if (typeof DG === 'undefined') {
-                console.error('❌ 2GIS not loaded');
-                // Пробуем загрузить снова через 1 секунду
-                setTimeout(() => this.init(), 1000);
-                return;
-            }
-
             // Очищаем контейнер карты
             const mapContainer = document.getElementById('map');
-            if (mapContainer) {
-                mapContainer.innerHTML = '';
-            }
+            mapContainer.innerHTML = '';
 
-            // Инициализация карты 2GIS
-            this.map = DG.map('map', {
-                center: [55.75, 37.62],
-                zoom: 5
-            });
+            // Инициализация карты Leaflet
+            this.map = L.map('map').setView([55.75, 37.62], 5);
+            
+            // Добавляем тайлы OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 18
+            }).addTo(this.map);
 
             this.isInitialized = true;
-            console.log('✅ 2GIS Map initialized successfully');
+            console.log('✅ Leaflet Map initialized successfully');
 
         } catch (error) {
-            console.error('❌ Error initializing 2GIS Map:', error);
+            console.error('❌ Error initializing Leaflet Map:', error);
         }
     },
 
-    // Простая версия добавления маркера
     addMarker(npo) {
         if (!this.map || !this.isInitialized) {
-            console.warn('⚠️ Map not ready');
+            console.warn('⚠️ Map not ready, skipping marker:', npo.name);
             return null;
         }
 
         try {
-            const marker = DG.marker([npo.lat, npo.lng])
+            // Создаем кастомную иконку
+            const icon = this.createCustomIcon(npo.category);
+            
+            // Создаем метку
+            const marker = L.marker([parseFloat(npo.lat), parseFloat(npo.lng)], { icon })
                 .addTo(this.map)
                 .bindPopup(`
                     <div style="min-width: 250px; padding: 10px;">
-                        <h4>${npo.name}</h4>
-                        <p><strong>Категория:</strong> ${npo.category}</p>
-                        <p><strong>Город:</strong> ${npo.city}</p>
+                        <h4 style="margin: 0 0 8px 0; color: #006CB7;">${npo.name}</h4>
+                        <p style="margin: 0 0 6px 0; font-size: 12px; color: #777;">
+                            <strong>Категория:</strong> ${npo.category}
+                        </p>
+                        <p style="margin: 0 0 6px 0; font-size: 12px; color: #777;">
+                            <strong>Город:</strong> ${npo.city}
+                        </p>
+                        <p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.4;">
+                            ${npo.description.substring(0, 120)}...
+                        </p>
                         <button onclick="app.showNpoCard(${npo.id})" 
-                                style="padding: 8px 16px; background: #006CB7; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                style="padding: 8px 16px; background: #006CB7; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%;">
                             Подробнее
                         </button>
                     </div>
                 `);
 
+            // Сохраняем ссылку на маркер
             marker.npoId = npo.id;
             this.markers.push(marker);
 
+            // Обработчик клика по метке
             marker.on('click', () => {
                 app.showNpoCard(npo.id);
             });
 
             return marker;
+
         } catch (error) {
-            console.error('Error adding marker:', error);
+            console.error('❌ Error adding marker:', error);
             return null;
         }
     },
 
+    // Создание кастомной иконки для маркера
+    createCustomIcon(category) {
+        const colors = {
+            'Экология': '#28a745',
+            'Помощь животным': '#ffc107', 
+            'Социальная поддержка': '#dc3545',
+            'Образование': '#007bff',
+            'Культура': '#6f42c1',
+            'Спорт': '#fd7e14',
+            'Здравоохранение': '#e83e8c',
+            'Другое': '#6c757d'
+        };
+
+        const color = colors[category] || '#006CB7';
+        
+        return L.divIcon({
+            className: 'custom-marker',
+            html: `
+                <div style="
+                    background-color: ${color};
+                    width: 30px;
+                    height: 30px;
+                    border-radius: 50%;
+                    border: 3px solid white;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-size: 12px;
+                    font-weight: bold;
+                "></div>
+            `,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        });
+    },
+
     clearMarkers() {
-        this.markers.forEach(marker => marker.remove());
-        this.markers = [];
+        if (this.markers.length > 0) {
+            this.markers.forEach(marker => {
+                if (marker && marker.remove) {
+                    marker.remove();
+                }
+            });
+            this.markers = [];
+        }
     },
 
     updateMarkers(npos) {
-        if (!this.isInitialized) return;
+        if (!this.isInitialized) {
+            console.warn('⚠️ Map not initialized, skipping markers update');
+            return;
+        }
+
+        console.log(`📍 Updating ${npos.length} markers on map...`);
         
+        // Очищаем старые маркеры
         this.clearMarkers();
+
+        // Добавляем новые маркеры
         npos.forEach(npo => this.addMarker(npo));
     },
 
     setView(lat, lng, zoom = 13) {
         if (this.map && this.isInitialized) {
-            this.map.setView([lat, lng], zoom);
+            this.map.setView([parseFloat(lat), parseFloat(lng)], zoom);
+        }
+    },
+
+    // Открыть попап для конкретной НКО
+    openPopup(npoId) {
+        const marker = this.markers.find(m => m.npoId == npoId);
+        if (marker) {
+            marker.openPopup();
+            
+            // Центрируем карту на маркере
+            this.setView(marker.getLatLng().lat, marker.getLatLng().lng, 15);
         }
     }
 };
