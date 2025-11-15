@@ -242,95 +242,24 @@ header {
     width: 100%;
 }
 
-/* NKO Card */
-.nko-card {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    right: 20px;
-    background-color: var(--white);
-    border-radius: 8px;
+/* Яндекс.Карты кастомизация */
+.ymaps-2-1-79-map {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.ymaps-2-1-79-balloon {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-    padding: 20px;
-    max-width: 500px;
-    transform: translateY(calc(100% + 20px));
-    transition: transform 0.4s ease;
-    z-index: 1000;
+    border-radius: 8px;
 }
 
-.nko-card.active {
-    transform: translateY(0);
+.ymaps-2-1-79-balloon__content {
+    padding: 0;
+    margin: 0;
 }
 
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 15px;
-}
-
-.card-title {
-    font-size: 20px;
-    color: var(--primary-blue);
-    margin-bottom: 5px;
-}
-
-.card-category {
-    font-size: 14px;
-    color: var(--medium-gray);
-    background-color: var(--light-gray);
-    padding: 3px 8px;
-    border-radius: 12px;
-    display: inline-block;
-}
-
-.close-card {
-    background: none;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    color: var(--medium-gray);
-}
-
-.card-content {
-    margin-bottom: 15px;
-}
-
-.card-field {
-    margin-bottom: 10px;
-    display: flex;
-    align-items: flex-start;
-}
-
-.field-icon {
-    width: 20px;
-    margin-right: 10px;
-    color: var(--primary-blue);
-    text-align: center;
-}
-
-.social-links {
-    display: flex;
-    gap: 10px;
-    margin-top: 15px;
-}
-
-.social-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    background-color: var(--light-gray);
-    border-radius: 50%;
-    color: var(--primary-blue);
-    text-decoration: none;
-    transition: all 0.3s ease;
-}
-
-.social-link:hover {
-    background-color: var(--primary-blue);
-    color: var(--white);
+.ymaps-2-1-79-balloon__close-button {
+    width: 25px;
+    height: 25px;
 }
 
 /* Auth Modal */

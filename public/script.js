@@ -4,6 +4,7 @@ const CONFIG = {
         ? 'http://localhost:10000/api' 
         : '/api',
     DOMAIN: window.location.hostname,
+    YANDEX_MAPS_API_KEY: '850ebf56-d22c-48f6-8bb6-01602cc24abf',
     CITIES: [
         'Ангарск', 'Байкальск', 'Балаково', 'Билибино', 'Волгодонск',
         'Глазов', 'Десногорск', 'Димитровград', 'Железногорск', 'Заречный',
@@ -164,51 +165,94 @@ const apiService = {
     }
 };
 
-// Map service
+// Map service for Yandex Maps
 const mapService = {
+    map: null,
+    markers: [],
+    objectManager: null,
+
     init() {
-        // Initialize Leaflet map
-        state.map = L.map('map').setView([55.75, 37.62], 5);
-        
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(state.map);
+        // Initialize Yandex Map
+        ymaps.ready(() => {
+            console.log('🗺️ Initializing Yandex Map...');
+            
+            this.map = new ymaps.Map('map', {
+                center: [55.75, 37.62],
+                zoom: 5,
+                controls: ['zoomControl', 'fullscreenControl']
+            });
+
+            // Create object manager for markers
+            this.objectManager = new ymaps.ObjectManager({
+                clusterize: true,
+                gridSize: 32,
+                clusterDisableClickZoom: true
+            });
+
+            this.objectManager.objects.options.set({
+                preset: 'islands#blueCircleIcon',
+                iconColor: '#006CB7'
+            });
+
+            this.objectManager.clusters.options.set({
+                preset: 'islands#blueClusterIcons'
+            });
+
+            // Add click handler for markers
+            this.objectManager.objects.events.add('click', (e) => {
+                const objectId = e.get('objectId');
+                const npo = state.npos.find(n => n.id == objectId);
+                if (npo) {
+                    app.showNpoCard(npo.id);
+                }
+            });
+
+            this.map.geoObjects.add(this.objectManager);
+            console.log('✅ Yandex Map initialized');
+        });
     },
 
     addMarker(npo) {
-        const marker = L.marker([npo.lat, npo.lng])
-            .addTo(state.map)
-            .bindPopup(`
-                <div style="min-width: 200px;">
-                    <h4 style="margin: 0 0 8px 0; color: #006CB7;">${npo.name}</h4>
-                    <p style="margin: 0 0 8px 0; font-size: 12px; color: #777;">
-                        <strong>Категория:</strong> ${npo.category}
-                    </p>
-                    <p style="margin: 0 0 12px 0; font-size: 14px;">
-                        ${npo.description.substring(0, 100)}...
-                    </p>
-                    <button class="btn btn-primary" onclick="app.showNpoCard('${npo.id}')" 
-                            style="padding: 6px 12px; font-size: 12px;">
-                        Подробнее
-                    </button>
-                </div>
-            `);
+        if (!this.objectManager) return;
 
-        marker.npoId = npo.id;
-        state.markers.push(marker);
+        const marker = {
+            type: 'Feature',
+            id: npo.id,
+            geometry: {
+                type: 'Point',
+                coordinates: [npo.lng, npo.lat]
+            },
+            properties: {
+                balloonContent: `
+                    <div style="min-width: 200px; padding: 10px;">
+                        <h4 style="margin: 0 0 8px 0; color: #006CB7;">${npo.name}</h4>
+                        <p style="margin: 0 0 8px 0; font-size: 12px; color: #777;">
+                            <strong>Категория:</strong> ${npo.category}
+                        </p>
+                        <p style="margin: 0 0 12px 0; font-size: 14px;">
+                            ${npo.description.substring(0, 100)}...
+                        </p>
+                        <button class="btn btn-primary" onclick="app.showNpoCard(${npo.id})" 
+                                style="padding: 6px 12px; font-size: 12px; border: none; border-radius: 4px; background: #006CB7; color: white; cursor: pointer;">
+                            Подробнее
+                        </button>
+                    </div>
+                `,
+                hintContent: npo.name,
+                clusterCaption: npo.name
+            }
+        };
 
-        marker.on('click', () => {
-            app.showNpoCard(npo.id);
-        });
-
+        this.objectManager.add(marker);
+        this.markers.push(marker);
         return marker;
     },
 
     clearMarkers() {
-        state.markers.forEach(marker => {
-            state.map.removeLayer(marker);
-        });
-        state.markers = [];
+        if (this.objectManager) {
+            this.objectManager.removeAll();
+        }
+        this.markers = [];
     },
 
     updateMarkers(npos) {
@@ -217,7 +261,21 @@ const mapService = {
     },
 
     setView(lat, lng, zoom = 13) {
-        state.map.setView([lat, lng], zoom);
+        if (this.map) {
+            this.map.setCenter([lng, lat], zoom);
+        }
+    },
+
+    // Новый метод для открытия балуна по НКО
+    openBalloon(npoId) {
+        if (this.objectManager && this.map) {
+            const marker = this.objectManager.objects.getById(npoId);
+            if (marker) {
+                this.map.balloon.open(marker.geometry.coordinates, {
+                    content: marker.properties.balloonContent
+                });
+            }
+        }
     }
 };
 
@@ -891,33 +949,19 @@ async showAdminPanel() {
         });
     },
 
-    // Show NPO card with details
-    showNPOCard(npo) {
-        const card = document.getElementById('nkoCard');
-        document.getElementById('cardTitle').textContent = npo.name;
-        document.getElementById('cardCategory').textContent = npo.category;
-        document.getElementById('cardDescription').textContent = npo.description;
-        document.getElementById('cardVolunteer').textContent = npo.volunteerActivities;
-        document.getElementById('cardAddress').textContent = npo.address;
-        document.getElementById('cardPhone').textContent = npo.phone || 'Не указан';
-        document.getElementById('cardWebsite').textContent = npo.website || 'Не указан';
-
-        // Social links
-        const socialContainer = document.getElementById('cardSocial');
-        socialContainer.innerHTML = '';
+    showNpoCard(npoId) {
+    const npo = state.npos.find(n => n.id == npoId);
+    if (npo) {
+        state.selectedNPO = npo;
+        uiController.showNPOCard(npo);
         
-        if (npo.social_vk) {
-            socialContainer.innerHTML += `<a href="${npo.social_vk}" class="social-link" target="_blank"><i class="fab fa-vk"></i></a>`;
-        }
-        if (npo.social_telegram) {
-            socialContainer.innerHTML += `<a href="${npo.social_telegram}" class="social-link" target="_blank"><i class="fab fa-telegram"></i></a>`;
-        }
-        if (npo.social_instagram) {
-            socialContainer.innerHTML += `<a href="${npo.social_instagram}" class="social-link" target="_blank"><i class="fab fa-instagram"></i></a>`;
-        }
-
-        card.classList.add('active');
+        // Центрируем карту на выбранной НКО
+        mapService.setView(npo.lat, npo.lng, 15);
+        
+        // Открываем балун на карте
+        mapService.openBalloon(npoId);
     }
+},
 };
 
 // Main Application
