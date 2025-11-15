@@ -6,8 +6,6 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import profileRoutes from './routes/profile.js';
-import adminRoutes from './routes/admin.js';
 
 // ES modules fix for __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -18,6 +16,9 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 10000;
+
+// ✅ FIX: Trust proxy for Render.com
+app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet({
@@ -36,11 +37,12 @@ app.use(helmet({
 // Compression middleware
 app.use(compression());
 
-// Rate limiting
+// ✅ FIX: Rate limiting with proxy trust
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  message: 'Слишком много запросов с этого IP, попробуйте позже'
+  message: 'Слишком много запросов с этого IP, попробуйте позже',
+  trustProxy: true // ✅ Добавьте эту строку
 });
 app.use('/api/', limiter);
 
@@ -87,9 +89,13 @@ app.use(express.static(path.join(__dirname, 'public'), {
 // API Routes
 import authRoutes from './routes/auth.js';
 import npoRoutes from './routes/npo.js';
+import profileRoutes from './routes/profile.js';
+import adminRoutes from './routes/admin.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/npo', npoRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -102,67 +108,40 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Serve frontend for all other routes (SPA support)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// ✅ FIX: Временный маршрут для настройки БД (удалить после использования)
+import User from './models/User.js';
+import NPO from './models/NPO.js';
 
-// Временный маршрут для создания админа и добавления тестовых НКО
 app.get('/api/setup-database', async (req, res) => {
   try {
     console.log('🔄 Starting database setup...');
     
-    let setupResults = {
-      admin: { created: false, message: '' },
-      npos: { added: 0, skipped: 0, total: 0 }
-    };
-
     // 1. Создание администратора
-    console.log('👑 Checking admin user...');
     const existingAdmin = await User.findOne({ where: { role: 'admin' } });
     
     if (existingAdmin) {
-      setupResults.admin = { 
-        created: false, 
-        message: 'Admin user already exists' 
-      };
       console.log('⚠️ Admin user already exists');
     } else {
-      // Создаем администратора
       const admin = await User.create({
         email: 'admin@nko-map.ru',
-        password: 'admin123', // Сменить после первого входа!
+        password: 'admin123',
         firstName: 'Администратор',
         lastName: 'Системы',
         role: 'admin',
         isVerified: true
       });
-
-      setupResults.admin = { 
-        created: true, 
-        message: 'Admin user created successfully. Email: admin@nko-map.ru, Password: admin123' 
-      };
       console.log('✅ Admin user created successfully');
     }
 
-    // 2. Добавление НКО (используем существующего или нового админа как создателя)
+    // 2. Добавление НКО
     const adminUser = await User.findOne({ where: { role: 'admin' } });
-    
-    if (!adminUser) {
-      return res.json({ 
-        success: false, 
-        error: 'Failed to find or create admin user' 
-      });
-    }
-
-    console.log('📝 Adding sample NPOs...');
     
     const sampleNPOs = [
       {
         name: 'ОО ТОС АГО "12а микрорайон"',
         category: 'Социальная поддержка',
-        description: 'Повышение качества жизни жителей 12а микрорайона г.Ангарска Иркутской области. Благоустройство и содержании территории, организация культурных, спортивных и социально значимых мероприятий, взаимодействие с органами власти для учёта мнения жителей, экологии и социальной помощи.',
-        volunteerActivities: 'Организация мероприятий, благоустройство территории, работа с жителями, проведение зарядок и тренировок, установка детских площадок.',
+        description: 'Повышение качества жизни жителей 12а микрорайона г.Ангарска...',
+        volunteerActivities: 'Организация мероприятий, благоустройство территории...',
         city: 'Ангарск',
         address: 'г. Ангарск, 12а микрорайон',
         social_vk: 'https://vk.com/id746471055',
@@ -414,7 +393,6 @@ app.get('/api/setup-database', async (req, res) => {
     ];
 
     let addedCount = 0;
-    let skippedCount = 0;
     
     for (const npoData of sampleNPOs) {
       const existingNPO = await NPO.findOne({ 
@@ -430,60 +408,24 @@ app.get('/api/setup-database', async (req, res) => {
         };
         await NPO.create(fullNpoData);
         addedCount++;
-        console.log(`✅ Added: ${npoData.name} (${npoData.city})`);
-      } else {
-        skippedCount++;
-        console.log(`⚠️ Already exists: ${npoData.name} (${npoData.city})`);
       }
     }
 
-    const totalInDB = await NPO.count();
-    
-    setupResults.npos = {
-      added: addedCount,
-      skipped: skippedCount,
-      total: totalInDB
-    };
-
-    // 3. Формируем итоговый ответ
-    const successMessage = `
-🎉 Database setup completed!
-
-👑 Admin: ${setupResults.admin.created ? 'CREATED' : 'EXISTS'}
-   ${setupResults.admin.message}
-
-📊 NPOs:
-   Added: ${addedCount} new organizations
-   Skipped: ${skippedCount} existing organizations  
-   Total in database: ${totalInDB} organizations
-
-🔐 Admin credentials:
-   Email: admin@nko-map.ru
-   Password: admin123
-   ⚠️ Change password after first login!
-    `;
-
-    console.log(successMessage);
-    
     res.json({ 
       success: true, 
-      message: 'Database setup completed successfully',
-      results: setupResults,
-      adminCredentials: {
-        email: 'admin@nko-map.ru',
-        password: 'admin123',
-        note: 'Change password after first login!'
-      }
+      message: `Setup completed! Added ${addedCount} NPOs`,
+      admin: { email: 'admin@nko-map.ru', password: 'admin123' }
     });
     
   } catch (error) {
-    console.error('❌ Database setup error:', error);
-    res.json({ 
-      success: false, 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
-    });
+    console.error('❌ Setup error:', error);
+    res.json({ success: false, error: error.message });
   }
+});
+
+// Serve frontend for all other routes (SPA support)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Error handling middleware
@@ -502,9 +444,6 @@ app.use((err, req, res, next) => {
     message: process.env.NODE_ENV === 'production' ? 'Внутренняя ошибка сервера' : err.message
   });
 });
-
-app.use('/api/profile', profileRoutes);
-app.use('/api/admin', adminRoutes);
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
