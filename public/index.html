@@ -122,15 +122,116 @@
         </div>
     </div>
     
-    <!-- Модальные окна остаются без изменений -->
     <!-- Auth Modal -->
     <div class="modal" id="authModal">
-        <!-- ... содержимое модального окна ... -->
+        <div class="modal-content">
+            <div class="tabs">
+                <div class="tab active" data-tab="login">Вход</div>
+                <div class="tab" data-tab="register">Регистрация</div>
+            </div>
+            
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Вход в аккаунт</h2>
+            </div>
+            
+            <form id="authForm">
+                <div class="form-group">
+                    <label class="form-label" for="email">Электронная почта</label>
+                    <input type="email" class="form-input" id="email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="password">Пароль</label>
+                    <input type="password" class="form-input" id="password" required>
+                </div>
+                
+                <div class="form-group" id="nameFields" style="display: none;">
+                    <label class="form-label" for="firstName">Имя</label>
+                    <input type="text" class="form-input" id="firstName">
+                    
+                    <label class="form-label" for="lastName">Фамилия</label>
+                    <input type="text" class="form-input" id="lastName">
+                </div>
+                
+                <div class="form-actions">
+                    <a href="#" class="form-link" id="forgotPassword">Забыли пароль?</a>
+                    <button type="submit" class="btn btn-primary" id="submitAuth">
+                        Войти
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
     
     <!-- Add NKO Modal -->
     <div class="modal" id="addNkoModal">
-        <!-- ... содержимое модального окна ... -->
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Добавить новую организацию</h2>
+            </div>
+            
+            <form id="addNkoForm">
+                <div class="form-group">
+                    <label class="form-label" for="nkoName">Название организации *</label>
+                    <input type="text" class="form-input" id="nkoName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="nkoCategory">Категория деятельности *</label>
+                    <select class="form-input" id="nkoCategory" required>
+                        <option value="">Выберите категорию</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="nkoDescription">Описание деятельности *</label>
+                    <textarea class="form-input" id="nkoDescription" rows="3" required placeholder="2-3 предложения о деятельности организации"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="nkoVolunteer">Функционал волонтеров *</label>
+                    <textarea class="form-input" id="nkoVolunteer" rows="2" required placeholder="Чем могут помочь волонтеры"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="nkoCity">Город *</label>
+                    <select class="form-input" id="nkoCity" required>
+                        <option value="">Выберите город</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="nkoAddress">Адрес *</label>
+                    <input type="text" class="form-input" id="nkoAddress" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="nkoPhone">Телефон</label>
+                    <input type="tel" class="form-input" id="nkoPhone">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="nkoWebsite">Веб-сайт</label>
+                    <input type="url" class="form-input" id="nkoWebsite" placeholder="https://">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Координаты на карте</label>
+                    <div class="map-picker" id="mapPicker" style="height: 200px; margin-top: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <!-- Small map for coordinate selection -->
+                    </div>
+                    <div class="coordinates-display">
+                        <span>Широта: <span id="latDisplay">55.75</span></span>
+                        <span>Долгота: <span id="lngDisplay">37.62</span></span>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" id="cancelAddNko">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Отправить на модерацию</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
