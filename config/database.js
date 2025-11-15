@@ -3,9 +3,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Для Render PostgreSQL или внешней MySQL
-const sequelize = new Sequelize(
-  process.env.DATABASE_URL || // Render PostgreSQL
+// Проверяем, есть ли данные для подключения
+const hasDatabaseConfig = process.env.DATABASE_URL || 
+                         (process.env.DB_HOST && process.env.DB_NAME);
+
+const sequelize = hasDatabaseConfig ? new Sequelize(
+  process.env.DATABASE_URL || 
   `mysql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
   {
     dialect: process.env.DATABASE_URL ? 'postgres' : 'mysql',
@@ -23,10 +26,15 @@ const sequelize = new Sequelize(
       }
     } : {}
   }
-);
+) : null;
 
-// Test connection
+// Test connection - только если есть конфиг базы
 const testConnection = async () => {
+  if (!sequelize) {
+    console.log('⚠️  Database configuration not found. Running without database.');
+    return;
+  }
+
   try {
     await sequelize.authenticate();
     console.log('✅ Database connection established successfully.');
@@ -36,8 +44,9 @@ const testConnection = async () => {
     console.log('✅ Database synchronized');
     
   } catch (error) {
-    console.error('❌ Unable to connect to database:', error);
-    process.exit(1);
+    console.error('❌ Unable to connect to database:', error.message);
+    console.log('⚠️  Continuing without database connection');
+    // Не завершаем процесс, продолжаем без базы
   }
 };
 
