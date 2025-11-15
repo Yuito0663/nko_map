@@ -1,13 +1,9 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import User from '../models/User.js';
 import { testConnection } from '../config/database.js';
 
 const router = express.Router();
-
-// In-memory storage for demo (замените на реальную базу позже)
-let users = [];
-let npos = [];
 
 // Test database connection on startup
 testConnection();
@@ -25,7 +21,7 @@ router.post('/register', async (req, res) => {
     }
 
     // Check if user exists
-    const existingUser = users.find(u => u.email === email);
+    const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
       return res.status(409).json({
         success: false,
@@ -33,29 +29,18 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
     // Create new user
-    const user = {
-      id: users.length + 1,
+    const user = await User.create({
       email,
-      password: hashedPassword,
+      password,
       firstName,
-      lastName,
-      nkoId: null,
-      role: 'user',
-      isVerified: false,
-      createdAt: new Date()
-    };
-
-    users.push(user);
+      lastName
+    });
 
     // Generate JWT token
     const token = jwt.sign(
       { userId: user.id },
-      process.env.JWT_SECRET || 'fallback-secret',
+      process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
 
@@ -93,8 +78,12 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Find user
-    const user = users.find(u => u.email === email);
+    // Find user with password
+    const user = await User.findOne({ 
+      where: { email },
+      attributes: { include: ['password'] }
+    });
+    
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -103,7 +92,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -114,7 +103,7 @@ router.post('/login', async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { userId: user.id },
-      process.env.JWT_SECRET || 'fallback-secret',
+      process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
 
@@ -153,8 +142,8 @@ router.get('/me', async (req, res) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
-    const user = users.find(u => u.id === decoded.userId);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findByPk(decoded.userId);
     
     if (!user) {
       return res.status(404).json({
