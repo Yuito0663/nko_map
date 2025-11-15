@@ -165,135 +165,89 @@ const apiService = {
     }
 };
 
-// Map service for Yandex Maps
-// Map service for Yandex Maps
+// Map service for 2GIS
 const mapService = {
     map: null,
-    objectManager: null,
+    markers: [],
     isInitialized: false,
 
     init() {
-        // Ждем загрузки Яндекс.Карт
-        if (typeof ymaps === 'undefined') {
-            console.error('❌ Yandex Maps not loaded');
-            setTimeout(() => this.init(), 500);
-            return;
-        }
-
-        ymaps.ready(() => {
-            console.log('🗺️ Initializing Yandex Map...');
+        try {
+            console.log('🗺️ Initializing 2GIS Map...');
             
-            // Очищаем контейнер карты на всякий случай
+            // Очищаем контейнер карты
             const mapContainer = document.getElementById('map');
             mapContainer.innerHTML = '';
 
-            try {
-                this.map = new ymaps.Map('map', {
-                    center: [55.75, 37.62],
-                    zoom: 5,
-                    controls: ['zoomControl', 'fullscreenControl']
-                }, {
-                    suppressMapOpenBlock: true
-                });
+            // Инициализация карты 2GIS
+            this.map = new DG.Map('map', {
+                center: [55.75, 37.62],
+                zoom: 5,
+                geoclicker: false
+            });
 
-                // Создаем ObjectManager для эффективного управления метками
-                this.objectManager = new ymaps.ObjectManager({
-                    clusterize: true,
-                    gridSize: 64,
-                    clusterDisableClickZoom: false,
-                    clusterIconColor: '#006CB7'
-                });
+            this.isInitialized = true;
+            console.log('✅ 2GIS Map initialized successfully');
 
-                // Настройки для отдельных меток
-                this.objectManager.objects.options.set({
-                    preset: 'islands#blueCircleDotIcon',
-                    iconColor: '#006CB7',
-                    openBalloonOnClick: true
-                });
-
-                // Настройки для кластеров
-                this.objectManager.clusters.options.set({
-                    preset: 'islands#blueClusterIcons',
-                    openBalloonOnClick: true
-                });
-
-                // Обработчик клика по меткам
-                this.objectManager.objects.events.add('click', (e) => {
-                    const objectId = e.get('objectId');
-                    const npo = state.npos.find(n => n.id == objectId);
-                    if (npo) {
-                        this.showNpoDetails(npo);
-                    }
-                });
-
-                // Обработчик клика по кластерам
-                this.objectManager.clusters.events.add('click', (e) => {
-                    const cluster = e.get('target');
-                    this.map.setCenter(cluster.geometry.getCoordinates(), cluster.getZoom() + 2);
-                });
-
-                // Добавляем ObjectManager на карту
-                this.map.geoObjects.add(this.objectManager);
-
-                this.isInitialized = true;
-                console.log('✅ Yandex Map initialized successfully');
-
-            } catch (error) {
-                console.error('❌ Error initializing Yandex Map:', error);
-            }
-        });
-    },
-
-    // Показать детали НКО при клике на метку
-    showNpoDetails(npo) {
-        app.showNpoCard(npo.id);
-        this.map.balloon.close(); // Закрываем стандартный балун
+        } catch (error) {
+            console.error('❌ Error initializing 2GIS Map:', error);
+        }
     },
 
     addMarker(npo) {
-        if (!this.objectManager || !this.isInitialized) {
+        if (!this.map || !this.isInitialized) {
             console.warn('⚠️ Map not ready, skipping marker:', npo.name);
             return null;
         }
 
-        const marker = {
-            type: 'Feature',
-            id: npo.id,
-            geometry: {
-                type: 'Point',
-                coordinates: [parseFloat(npo.lng), parseFloat(npo.lat)]
-            },
-            properties: {
-                balloonContentHeader: npo.name,
-                balloonContentBody: `
-                    <div style="max-width: 300px;">
-                        <p><strong>Категория:</strong> ${npo.category}</p>
-                        <p><strong>Город:</strong> ${npo.city}</p>
-                        <p>${npo.description.substring(0, 100)}...</p>
+        try {
+            // Создаем метку с кастомной иконкой
+            const marker = DG.marker([parseFloat(npo.lat), parseFloat(npo.lat)])
+                .addTo(this.map)
+                .bindPopup(`
+                    <div style="min-width: 250px; padding: 10px;">
+                        <h4 style="margin: 0 0 8px 0; color: #006CB7;">${this.escapeHtml(npo.name)}</h4>
+                        <p style="margin: 0 0 6px 0; font-size: 12px; color: #777;">
+                            <strong>Категория:</strong> ${this.escapeHtml(npo.category)}
+                        </p>
+                        <p style="margin: 0 0 6px 0; font-size: 12px; color: #777;">
+                            <strong>Город:</strong> ${this.escapeHtml(npo.city)}
+                        </p>
+                        <p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.4;">
+                            ${this.escapeHtml(npo.description.substring(0, 120))}...
+                        </p>
                         <button onclick="app.showNpoCard(${npo.id})" 
-                                style="padding: 8px 16px; background: #006CB7; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">
+                                style="padding: 8px 16px; background: #006CB7; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%;">
                             Подробнее
                         </button>
                     </div>
-                `,
-                hintContent: npo.name,
-                clusterCaption: npo.name
-            },
-            options: {
-                preset: 'islands#blueCircleDotIcon',
-                iconColor: this.getCategoryColor(npo.category)
-            }
-        };
+                `);
 
-        this.objectManager.add(marker);
-        return marker;
+            // Устанавливаем иконку в зависимости от категории
+            this.setMarkerIcon(marker, npo.category);
+
+            // Сохраняем ссылку на маркер
+            marker.npoId = npo.id;
+            this.markers.push(marker);
+
+            // Обработчик клика по метке
+            marker.on('click', () => {
+                app.showNpoCard(npo.id);
+            });
+
+            return marker;
+
+        } catch (error) {
+            console.error('❌ Error adding marker:', error);
+            return null;
+        }
     },
 
-    // Цвета меток по категориям
-    getCategoryColor(category) {
+    // Установка иконки маркера по категории
+    setMarkerIcon(marker, category) {
         const colors = {
             'Экология': '#28a745',
-            'Помощь животным': '#ffc107',
+            'Помощь животным': '#ffc107', 
             'Социальная поддержка': '#dc3545',
             'Образование': '#007bff',
             'Культура': '#6f42c1',
@@ -301,12 +255,47 @@ const mapService = {
             'Здравоохранение': '#e83e8c',
             'Другое': '#6c757d'
         };
-        return colors[category] || '#006CB7';
+
+        const color = colors[category] || '#006CB7';
+        
+        // Создаем кастомную иконку
+        marker.setIcon({
+            iconUrl: this.createMarkerIcon(color),
+            iconSize: [30, 30],
+            iconAnchor: [15, 30]
+        });
+    },
+
+    // Создание SVG иконки для маркера
+    createMarkerIcon(color) {
+        const svg = `
+            <svg width="30" height="30" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15 0C9.477 0 5 4.477 5 10c0 5.523 4.477 10 10 10s10-4.477 10-10C25 4.477 20.523 0 15 0z" 
+                      fill="${color}" stroke="#ffffff" stroke-width="2"/>
+                <circle cx="15" cy="10" r="3" fill="#ffffff"/>
+            </svg>
+        `;
+        return 'data:image/svg+xml;base64,' + btoa(svg);
+    },
+
+    // Экранирование HTML для безопасности
+    escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     },
 
     clearMarkers() {
-        if (this.objectManager) {
-            this.objectManager.removeAll();
+        if (this.markers.length > 0) {
+            this.markers.forEach(marker => {
+                if (marker && marker.remove) {
+                    marker.remove();
+                }
+            });
+            this.markers = [];
         }
     },
 
@@ -316,31 +305,65 @@ const mapService = {
             return;
         }
 
-        this.clearMarkers();
+        console.log(`📍 Updating ${npos.length} markers on 2GIS map...`);
         
-        // Добавляем метки с небольшой задержкой для производительности
-        setTimeout(() => {
-            npos.forEach(npo => this.addMarker(npo));
-            console.log(`📍 Updated ${npos.length} markers on map`);
-        }, 100);
+        // Очищаем старые маркеры
+        this.clearMarkers();
+
+        // Добавляем новые маркеры с оптимизацией производительности
+        this.addMarkersWithDelay(npos, 0);
+    },
+
+    // Добавление маркеров с задержкой для производительности
+    addMarkersWithDelay(npos, index) {
+        if (index >= npos.length) {
+            console.log(`✅ All ${npos.length} markers added to map`);
+            return;
+        }
+
+        // Добавляем пачками по 10 маркеров
+        const batchSize = 10;
+        const endIndex = Math.min(index + batchSize, npos.length);
+
+        for (let i = index; i < endIndex; i++) {
+            this.addMarker(npos[i]);
+        }
+
+        // Следующая пачка через 50мс
+        if (endIndex < npos.length) {
+            setTimeout(() => {
+                this.addMarkersWithDelay(npos, endIndex);
+            }, 50);
+        }
     },
 
     setView(lat, lng, zoom = 13) {
         if (this.map && this.isInitialized) {
-            this.map.setCenter([parseFloat(lng), parseFloat(lat)], zoom);
+            this.map.setView([parseFloat(lat), parseFloat(lng)], zoom);
         }
     },
 
-    // Открыть балун для конкретной НКО
-    openBalloon(npoId) {
-        if (this.objectManager && this.map) {
-            const marker = this.objectManager.objects.getById(npoId);
-            if (marker) {
-                this.map.balloon.open(marker.geometry.coordinates, {
-                    content: marker.properties.balloonContentBody
-                });
+    // Открыть попап для конкретной НКО
+    openPopup(npoId) {
+        const marker = this.markers.find(m => m.npoId == npoId);
+        if (marker && marker.openPopup) {
+            marker.openPopup();
+            
+            // Центрируем карту на маркере
+            const latlng = marker.getLatLng();
+            if (latlng) {
+                this.map.setView(latlng, 15);
             }
         }
+    },
+
+    // Удалить все маркеры и очистить карту
+    destroy() {
+        this.clearMarkers();
+        if (this.map && this.map.remove) {
+            this.map.remove();
+        }
+        this.isInitialized = false;
     }
 };
 
@@ -1052,11 +1075,11 @@ async showAdminPanel() {
         state.selectedNPO = npo;
         uiController.showNPOCard(npo);
         
-        // Центрируем карту на выбранной НКО
+        // Центрируем карту на выбранной НКО и открываем попап
         mapService.setView(npo.lat, npo.lng, 15);
-        
-        // Открываем балун на карте
-        mapService.openBalloon(npoId);
+        setTimeout(() => {
+            mapService.openPopup(npoId);
+        }, 300);
     }
 },
 };
