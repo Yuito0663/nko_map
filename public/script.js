@@ -311,19 +311,19 @@ const mapService = {
     },
 
     updateMarkers(npos) {
-        if (!this.isInitialized) {
-            console.warn('⚠️ Map not initialized, skipping markers update');
-            return;
-        }
-
-        this.clearMarkers();
-        
-        // Добавляем метки с небольшой задержкой для производительности
+    if (!this.isInitialized) return;
+    
+    this.clearMarkers();
+    
+    // Ограничиваем количество одновременно добавляемых меток
+    const batchSize = 50;
+    for (let i = 0; i < npos.length; i += batchSize) {
         setTimeout(() => {
-            npos.forEach(npo => this.addMarker(npo));
-            console.log(`📍 Updated ${npos.length} markers on map`);
-        }, 100);
-    },
+            const batch = npos.slice(i, i + batchSize);
+            batch.forEach(npo => this.addMarker(npo));
+        }, i * 10);
+    }
+},
 
     setView(lat, lng, zoom = 13) {
         if (this.map && this.isInitialized) {
