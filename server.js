@@ -17,7 +17,6 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// ✅ FIX: Trust proxy for Render.com
 app.set('trust proxy', 1);
 
 // Security middleware для Leaflet
@@ -37,12 +36,11 @@ app.use(helmet({
 // Compression middleware
 app.use(compression());
 
-// ✅ FIX: Rate limiting with proxy trust
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: 'Слишком много запросов с этого IP, попробуйте позже',
-  trustProxy: true // ✅ Добавьте эту строку
+  trustProxy: true 
 });
 app.use('/api/', limiter);
 
@@ -132,7 +130,7 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'production'}`);
-  console.log(`🌐 Render.com deployment ready`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'production'}`);
+  console.log(`Render.com deployment ready`);
 });
