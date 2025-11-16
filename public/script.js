@@ -660,45 +660,43 @@ const uiController = {
         tryPopulate();
     },
 
-    // Update auth UI with profile and admin access
+// Update auth UI with profile and admin access
 updateAuthUI() {
     const loginBtn = document.getElementById('loginBtn');
     const addNkoBtn = document.getElementById('addNkoBtn');
 
     if (!loginBtn) return;
 
+    // Удаляем все существующие обработчики
+    const newLoginBtn = loginBtn.cloneNode(true);
+    loginBtn.parentNode.replaceChild(newLoginBtn, loginBtn);
+
     if (state.currentUser) {
-        // Show username and add menu
+        // Show username
         if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
-            loginBtn.innerHTML = `<i class="fas fa-crown"></i> ${state.currentUser.firstName} ▾`;
+            newLoginBtn.innerHTML = `<i class="fas fa-crown"></i> ${state.currentUser.firstName} ▾`;
         } else {
-            loginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName} ▾`;
+            newLoginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName} ▾`;
         }
         
-        // Удаляем старые обработчики и добавляем новый для меню
-        loginBtn.replaceWith(loginBtn.cloneNode(true));
-        const newLoginBtn = document.getElementById('loginBtn');
-        
-        newLoginBtn.onclick = (e) => {
+        // Добавляем обработчик для меню
+        newLoginBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            this.showUserMenu();
-        };
+            this.showUserMenu(e);
+        });
         
         if (addNkoBtn) {
             addNkoBtn.disabled = false;
         }
     } else {
-        loginBtn.innerHTML = '<i class="fas fa-user"></i> Войти';
+        newLoginBtn.innerHTML = '<i class="fas fa-user"></i> Войти';
         
-        // Удаляем старые обработчики и добавляем новый для авторизации
-        loginBtn.replaceWith(loginBtn.cloneNode(true));
-        const newLoginBtn = document.getElementById('loginBtn');
-        
-        newLoginBtn.onclick = () => {
+        // Добавляем обработчик для авторизации
+        newLoginBtn.addEventListener('click', () => {
             const authModal = document.getElementById('authModal');
             if (authModal) authModal.classList.add('active');
-        };
+        });
         
         if (addNkoBtn) {
             addNkoBtn.disabled = true;
@@ -706,21 +704,25 @@ updateAuthUI() {
     }
 },
 
-// Show user menu with options
-showUserMenu() {
+// Show user menu with options - ОБНОВЛЕННАЯ ВЕРСИЯ
+showUserMenu(e) {
     console.log('🎯 showUserMenu called');
     
     // Удаляем старое меню если есть
     const oldMenu = document.querySelector('.user-menu');
     if (oldMenu) oldMenu.remove();
 
+    // Получаем позицию кнопки
+    const loginBtn = document.getElementById('loginBtn');
+    const btnRect = loginBtn.getBoundingClientRect();
+
     // Создаем выпадающее меню
     const menu = document.createElement('div');
     menu.className = 'user-menu';
     menu.style.cssText = `
-        position: fixed;
-        top: 70px;
-        right: 20px;
+        position: absolute;
+        top: ${btnRect.bottom + window.scrollY}px;
+        right: ${window.innerWidth - btnRect.right}px;
         background: white;
         border-radius: 8px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.2);
@@ -730,25 +732,6 @@ showUserMenu() {
         border: 1px solid #eee;
         font-family: 'Rosatom', sans-serif;
     `;
-
-    // Функции для обработки кликов
-    const handleProfileClick = () => {
-        console.log('👤 Opening profile...');
-        menu.remove();
-        this.showProfile();
-    };
-
-    const handleAdminClick = () => {
-        console.log('👑 Opening admin panel...');
-        menu.remove();
-        this.showAdminPanel();
-    };
-
-    const handleLogoutClick = () => {
-        console.log('🚪 Logging out...');
-        menu.remove();
-        app.logout();
-    };
 
     // Для администратора
     if (state.currentUser.role === 'admin') {
@@ -784,46 +767,44 @@ showUserMenu() {
 
     document.body.appendChild(menu);
 
-    // Добавляем обработчики для пунктов меню
-    const profileItem = menu.querySelector('.profile-item');
-    const adminItem = menu.querySelector('.admin-item');
-    const logoutItem = menu.querySelector('.logout-item');
+    // Добавляем обработчики событий
+    const addMenuItemHandler = (selector, handler) => {
+        const element = menu.querySelector(selector);
+        if (element) {
+            element.addEventListener('click', handler);
+            element.addEventListener('mouseenter', () => {
+                element.style.backgroundColor = selector.includes('logout') ? '#fff5f5' : '#f8f9fa';
+            });
+            element.addEventListener('mouseleave', () => {
+                element.style.backgroundColor = '';
+            });
+        }
+    };
 
-    if (profileItem) {
-        profileItem.addEventListener('click', handleProfileClick);
-        profileItem.addEventListener('mouseenter', () => {
-            profileItem.style.backgroundColor = '#f8f9fa';
-        });
-        profileItem.addEventListener('mouseleave', () => {
-            profileItem.style.backgroundColor = '';
-        });
-    }
+    // Обработчики для пунктов меню
+    addMenuItemHandler('.profile-item', () => {
+        console.log('👤 Opening profile...');
+        menu.remove();
+        this.showProfile();
+    });
 
-    if (adminItem) {
-        adminItem.addEventListener('click', handleAdminClick);
-        adminItem.addEventListener('mouseenter', () => {
-            adminItem.style.backgroundColor = '#f8f9fa';
-        });
-        adminItem.addEventListener('mouseleave', () => {
-            adminItem.style.backgroundColor = '';
-        });
-    }
+    addMenuItemHandler('.admin-item', () => {
+        console.log('👑 Opening admin panel...');
+        menu.remove();
+        this.showAdminPanel();
+    });
 
-    if (logoutItem) {
-        logoutItem.addEventListener('click', handleLogoutClick);
-        logoutItem.addEventListener('mouseenter', () => {
-            logoutItem.style.backgroundColor = '#fff5f5';
-        });
-        logoutItem.addEventListener('mouseleave', () => {
-            logoutItem.style.backgroundColor = '';
-        });
-    }
+    addMenuItemHandler('.logout-item', () => {
+        console.log('🚪 Logging out...');
+        menu.remove();
+        app.logout();
+    });
 
     // Закрытие меню при клике вне его
-    const closeMenu = (e) => {
-        if (!menu.contains(e.target) && e.target.id !== 'loginBtn') {
+    const closeMenuHandler = (e) => {
+        if (!menu.contains(e.target) && e.target !== loginBtn && !loginBtn.contains(e.target)) {
             menu.remove();
-            document.removeEventListener('click', closeMenu);
+            document.removeEventListener('click', closeMenuHandler);
             document.removeEventListener('keydown', handleEscape);
         }
     };
@@ -832,29 +813,17 @@ showUserMenu() {
     const handleEscape = (e) => {
         if (e.key === 'Escape') {
             menu.remove();
-            document.removeEventListener('click', closeMenu);
+            document.removeEventListener('click', closeMenuHandler);
             document.removeEventListener('keydown', handleEscape);
         }
     };
 
-    // Даем время для добавления меню в DOM перед добавлением обработчиков
+    // Даем время для добавления меню в DOM
     setTimeout(() => {
-        document.addEventListener('click', closeMenu);
+        document.addEventListener('click', closeMenuHandler);
         document.addEventListener('keydown', handleEscape);
     }, 10);
 },
-        // Закрытие меню при клике вне его
-        const closeMenu = (e) => {
-            if (!menu.contains(e.target) && e.target.id !== 'loginBtn') {
-                menu.remove();
-                document.removeEventListener('click', closeMenu);
-            }
-        };
-
-        setTimeout(() => {
-            document.addEventListener('click', closeMenu);
-        }, 100);
-    },
 
     // Show profile modal
     async showProfile() {
