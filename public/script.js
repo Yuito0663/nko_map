@@ -660,43 +660,37 @@ const uiController = {
         tryPopulate();
     },
 
-// Update auth UI with profile and admin access
+// Упрощенная версия updateAuthUI
 updateAuthUI() {
     const loginBtn = document.getElementById('loginBtn');
     const addNkoBtn = document.getElementById('addNkoBtn');
 
     if (!loginBtn) return;
 
-    // Удаляем все существующие обработчики
-    const newLoginBtn = loginBtn.cloneNode(true);
-    loginBtn.parentNode.replaceChild(newLoginBtn, loginBtn);
-
+    // Просто обновляем содержимое кнопки
     if (state.currentUser) {
-        // Show username
         if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
-            newLoginBtn.innerHTML = `<i class="fas fa-crown"></i> ${state.currentUser.firstName} ▾`;
+            loginBtn.innerHTML = `<i class="fas fa-crown"></i> ${state.currentUser.firstName} ▾`;
         } else {
-            newLoginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName} ▾`;
+            loginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName} ▾`;
         }
         
-        // Добавляем обработчик для меню
-        newLoginBtn.addEventListener('click', (e) => {
+        // Устанавливаем один обработчик
+        loginBtn.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
             this.showUserMenu(e);
-        });
+        };
         
         if (addNkoBtn) {
             addNkoBtn.disabled = false;
         }
     } else {
-        newLoginBtn.innerHTML = '<i class="fas fa-user"></i> Войти';
-        
-        // Добавляем обработчик для авторизации
-        newLoginBtn.addEventListener('click', () => {
+        loginBtn.innerHTML = '<i class="fas fa-user"></i> Войти';
+        loginBtn.onclick = () => {
             const authModal = document.getElementById('authModal');
             if (authModal) authModal.classList.add('active');
-        });
+        };
         
         if (addNkoBtn) {
             addNkoBtn.disabled = true;
@@ -704,126 +698,20 @@ updateAuthUI() {
     }
 },
 
-// Show user menu with options - ОБНОВЛЕННАЯ ВЕРСИЯ
-showUserMenu(e) {
-    console.log('🎯 showUserMenu called');
-    
-    // Удаляем старое меню если есть
-    const oldMenu = document.querySelector('.user-menu');
-    if (oldMenu) oldMenu.remove();
+        document.body.appendChild(menu);
 
-    // Получаем позицию кнопки
-    const loginBtn = document.getElementById('loginBtn');
-    const btnRect = loginBtn.getBoundingClientRect();
+        // Закрытие меню при клике вне его
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target) && e.target.id !== 'loginBtn') {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
 
-    // Создаем выпадающее меню
-    const menu = document.createElement('div');
-    menu.className = 'user-menu';
-    menu.style.cssText = `
-        position: absolute;
-        top: ${btnRect.bottom + window.scrollY}px;
-        right: ${window.innerWidth - btnRect.right}px;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        padding: 8px 0;
-        min-width: 220px;
-        z-index: 10000;
-        border: 1px solid #eee;
-        font-family: 'Rosatom', sans-serif;
-    `;
-
-    // Для администратора
-    if (state.currentUser.role === 'admin') {
-        menu.innerHTML = `
-            <div class="menu-item profile-item" style="padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: background-color 0.2s; border: none; background: none; width: 100%; text-align: left; font-size: 14px;">
-                <i class="fas fa-user" style="color: #025EA1; width: 16px;"></i>
-                <span>Личный кабинет</span>
-            </div>
-            <div class="menu-item admin-item" style="padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: background-color 0.2s; border: none; background: none; width: 100%; text-align: left; font-size: 14px;">
-                <i class="fas fa-crown" style="color: #FCC30B; width: 16px;"></i>
-                <span>Админ панель</span>
-            </div>
-            <hr style="margin: 4px 0; border: none; border-top: 1px solid #eee;">
-            <div class="menu-item logout-item" style="padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: background-color 0.2s; border: none; background: none; width: 100%; text-align: left; font-size: 14px; color: #dc3545;">
-                <i class="fas fa-sign-out-alt" style="width: 16px;"></i>
-                <span>Выйти</span>
-            </div>
-        `;
-    } else {
-        // Для обычного пользователя
-        menu.innerHTML = `
-            <div class="menu-item profile-item" style="padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: background-color 0.2s; border: none; background: none; width: 100%; text-align: left; font-size: 14px;">
-                <i class="fas fa-user" style="color: #025EA1; width: 16px;"></i>
-                <span>Личный кабинет</span>
-            </div>
-            <hr style="margin: 4px 0; border: none; border-top: 1px solid #eee;">
-            <div class="menu-item logout-item" style="padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: background-color 0.2s; border: none; background: none; width: 100%; text-align: left; font-size: 14px; color: #dc3545;">
-                <i class="fas fa-sign-out-alt" style="width: 16px;"></i>
-                <span>Выйти</span>
-            </div>
-        `;
-    }
-
-    document.body.appendChild(menu);
-
-    // Добавляем обработчики событий
-    const addMenuItemHandler = (selector, handler) => {
-        const element = menu.querySelector(selector);
-        if (element) {
-            element.addEventListener('click', handler);
-            element.addEventListener('mouseenter', () => {
-                element.style.backgroundColor = selector.includes('logout') ? '#fff5f5' : '#f8f9fa';
-            });
-            element.addEventListener('mouseleave', () => {
-                element.style.backgroundColor = '';
-            });
-        }
-    };
-
-    // Обработчики для пунктов меню
-    addMenuItemHandler('.profile-item', () => {
-        console.log('👤 Opening profile...');
-        menu.remove();
-        this.showProfile();
-    });
-
-    addMenuItemHandler('.admin-item', () => {
-        console.log('👑 Opening admin panel...');
-        menu.remove();
-        this.showAdminPanel();
-    });
-
-    addMenuItemHandler('.logout-item', () => {
-        console.log('🚪 Logging out...');
-        menu.remove();
-        app.logout();
-    });
-
-    // Закрытие меню при клике вне его
-    const closeMenuHandler = (e) => {
-        if (!menu.contains(e.target) && e.target !== loginBtn && !loginBtn.contains(e.target)) {
-            menu.remove();
-            document.removeEventListener('click', closeMenuHandler);
-            document.removeEventListener('keydown', handleEscape);
-        }
-    };
-
-    // Закрытие меню по Escape
-    const handleEscape = (e) => {
-        if (e.key === 'Escape') {
-            menu.remove();
-            document.removeEventListener('click', closeMenuHandler);
-            document.removeEventListener('keydown', handleEscape);
-        }
-    };
-
-    // Даем время для добавления меню в DOM
-    setTimeout(() => {
-        document.addEventListener('click', closeMenuHandler);
-        document.addEventListener('keydown', handleEscape);
-    }, 10);
-},
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+        }, 100);
+    },
 
     // Show profile modal
     async showProfile() {
