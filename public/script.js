@@ -657,37 +657,27 @@ const uiController = {
     // Update auth UI with profile and admin access
     updateAuthUI() {
     const loginBtn = document.getElementById('loginBtn');
-    const addNkoBtn = document.getElementById('addNkoBtn');
-
-    if (!loginBtn) return;
-
+    const authModal = document.getElementById('authModal');
+    
     if (state.currentUser) {
-        // Show username and add menu
-        if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
-            loginBtn.innerHTML = `<i class="fas fa-crown"></i> ${state.currentUser.firstName} ▾`;
-        } else {
-            loginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName} ▾`;
-        }
+        // После авторизации: меняем текст на имя пользователя и устанавливаем onclick для меню
+        loginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.name || state.currentUser.email} <span class="dropdown-arrow">▾</span>`;
+        loginBtn.onclick = showUserMenu;  // Это откроет меню, а не модал
+        loginBtn.classList.add('user-menu-btn');  // Опционально, для стилей
         
-        loginBtn.onclick = null;  // Очищаем предыдущие обработчики
-        loginBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.showUserMenu();
-        };
+        // Закрываем модал, если открыт
+        if (authModal) authModal.classList.remove('active');
         
-        if (addNkoBtn) {
-            addNkoBtn.disabled = false;
-        }
+        console.log('UI updated for logged-in user:', state.currentUser);  // Для отладки
     } else {
+        // До авторизации: стандартная кнопка "Войти"
         loginBtn.innerHTML = '<i class="fas fa-user"></i> Войти';
-        loginBtn.onclick = null;  // Очищаем предыдущие обработчики
         loginBtn.onclick = () => {
-            const authModal = document.getElementById('authModal');
             if (authModal) authModal.classList.add('active');
         };
-        if (addNkoBtn) {
-            addNkoBtn.disabled = true;
-        }
+        loginBtn.classList.remove('user-menu-btn');
+        
+        console.log('UI updated for guest');  // Для отладки
     }
 }
 
