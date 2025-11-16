@@ -408,12 +408,6 @@ const uiController = {
             if (allFound) {
                 console.log('All essential elements found, setting up listeners...');
                 
-                // Auth modal
-                loginBtn.addEventListener('click', () => {
-                    console.log('Login button clicked');
-                    authModal.classList.add('active');
-                });
-
                 addNkoBtn.addEventListener('click', () => {
                     console.log('Add NKO button clicked');
                     if (!state.currentUser) {
@@ -662,39 +656,41 @@ const uiController = {
 
     // Update auth UI with profile and admin access
     updateAuthUI() {
-        const loginBtn = document.getElementById('loginBtn');
-        const addNkoBtn = document.getElementById('addNkoBtn');
+    const loginBtn = document.getElementById('loginBtn');
+    const addNkoBtn = document.getElementById('addNkoBtn');
 
-        if (!loginBtn) return;
+    if (!loginBtn) return;
 
-        if (state.currentUser) {
-            // Show username and add menu
-            if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
-                loginBtn.innerHTML = `<i class="fas fa-crown"></i> ${state.currentUser.firstName} ▾`;
-            } else {
-                loginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName} ▾`;
-            }
-            
-            // Правильный обработчик для меню пользователя
-            loginBtn.onclick = (e) => {
-                e.stopPropagation();
-                this.showUserMenu();
-            };
-            
-            if (addNkoBtn) {
-                addNkoBtn.disabled = false;
-            }
+    if (state.currentUser) {
+        // Show username and add menu
+        if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
+            loginBtn.innerHTML = `<i class="fas fa-crown"></i> ${state.currentUser.firstName} ▾`;
         } else {
-            loginBtn.innerHTML = '<i class="fas fa-user"></i> Войти';
-            loginBtn.onclick = () => {
-                const authModal = document.getElementById('authModal');
-                if (authModal) authModal.classList.add('active');
-            };
-            if (addNkoBtn) {
-                addNkoBtn.disabled = true;
-            }
+            loginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName} ▾`;
         }
-    },
+        
+        loginBtn.onclick = null;  // Очищаем предыдущие обработчики
+        loginBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.showUserMenu();
+        };
+        
+        if (addNkoBtn) {
+            addNkoBtn.disabled = false;
+        }
+    } else {
+        loginBtn.innerHTML = '<i class="fas fa-user"></i> Войти';
+        loginBtn.onclick = null;  // Очищаем предыдущие обработчики
+        loginBtn.onclick = () => {
+            const authModal = document.getElementById('authModal');
+            if (authModal) authModal.classList.add('active');
+        };
+        if (addNkoBtn) {
+            addNkoBtn.disabled = true;
+        }
+    }
+}
+
 
     // Show user menu with options
     showUserMenu() {
