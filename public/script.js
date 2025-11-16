@@ -660,43 +660,93 @@ const uiController = {
         tryPopulate();
     },
 
-// Упрощенная версия updateAuthUI
-updateAuthUI() {
-    const loginBtn = document.getElementById('loginBtn');
-    const addNkoBtn = document.getElementById('addNkoBtn');
+    // Update auth UI with profile and admin access
+    updateAuthUI() {
+        const loginBtn = document.getElementById('loginBtn');
+        const addNkoBtn = document.getElementById('addNkoBtn');
 
-    if (!loginBtn) return;
+        if (!loginBtn) return;
 
-    // Просто обновляем содержимое кнопки
-    if (state.currentUser) {
-        if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
-            loginBtn.innerHTML = `<i class="fas fa-crown"></i> ${state.currentUser.firstName} ▾`;
+        if (state.currentUser) {
+            // Show username and add menu
+            if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
+                loginBtn.innerHTML = `<i class="fas fa-crown"></i> ${state.currentUser.firstName} ▾`;
+            } else {
+                loginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName} ▾`;
+            }
+            
+            // Правильный обработчик для меню пользователя
+            loginBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.showUserMenu();
+            };
+            
+            if (addNkoBtn) {
+                addNkoBtn.disabled = false;
+            }
         } else {
-            loginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName} ▾`;
+            loginBtn.innerHTML = '<i class="fas fa-user"></i> Войти';
+            loginBtn.onclick = () => {
+                const authModal = document.getElementById('authModal');
+                if (authModal) authModal.classList.add('active');
+            };
+            if (addNkoBtn) {
+                addNkoBtn.disabled = true;
+            }
         }
+    },
+
+    // Show user menu with options
+    showUserMenu() {
+        console.log('showUserMenu called');
+        console.log('Current user:', state.currentUser);
         
-        // Устанавливаем один обработчик
-        loginBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.showUserMenu(e);
-        };
-        
-        if (addNkoBtn) {
-            addNkoBtn.disabled = false;
+        // Удаляем старое меню если есть
+        const oldMenu = document.querySelector('.user-menu');
+        if (oldMenu) oldMenu.remove();
+
+        // Создаем выпадающее меню
+        const menu = document.createElement('div');
+        menu.className = 'user-menu';
+        menu.style.cssText = `
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 10px 0;
+            min-width: 200px;
+            z-index: 10000;
+            border: 1px solid #eee;
+        `;
+
+        // Для администратора
+        if (state.currentUser.role === 'admin') {
+            menu.innerHTML = `
+                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showProfile()">
+                    <i class="fas fa-user"></i> Личный кабинет
+                </div>
+                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showAdminPanel()">
+                    <i class="fas fa-crown"></i> Админ панель
+                </div>
+                <hr style="margin: 5px 0; border: none; border-top: 1px solid #eee;">
+                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #dc3545;" onclick="app.logout()">
+                    <i class="fas fa-sign-out-alt"></i> Выйти
+                </div>
+            `;
+        } else {
+            // Для обычного пользователя
+            menu.innerHTML = `
+                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showProfile()">
+                    <i class="fas fa-user"></i> Личный кабинет
+                </div>
+                <hr style="margin: 5px 0; border: none; border-top: 1px solid #eee;">
+                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #dc3545;" onclick="app.logout()">
+                    <i class="fas fa-sign-out-alt"></i> Выйти
+                </div>
+            `;
         }
-    } else {
-        loginBtn.innerHTML = '<i class="fas fa-user"></i> Войти';
-        loginBtn.onclick = () => {
-            const authModal = document.getElementById('authModal');
-            if (authModal) authModal.classList.add('active');
-        };
-        
-        if (addNkoBtn) {
-            addNkoBtn.disabled = true;
-        }
-    }
-},
 
         document.body.appendChild(menu);
 
