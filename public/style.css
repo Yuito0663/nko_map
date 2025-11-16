@@ -564,21 +564,13 @@ header::before {
     }
     
     .nav-buttons {
-        position: relative;
-        display: flex;
-        gap: 10px;
-        align-items: center;
+        gap: 8px;
     }
     
     .btn {
         padding: 8px 16px;
         font-size: 12px;
     }
-}
-
-#loginBtn {
-    cursor: pointer;
-    position: relative;
 }
 
 /* Utility Classes */
@@ -611,20 +603,4 @@ header::before {
     40% { color: var(--medium-gray); }
     60% { color: var(--primary-blue); }
     80%, 100% { color: var(--primary-dark-blue); }
-}
-.user-menu {
-    animation: fadeIn 0.2s ease-in-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.menu-item:hover {
-    background-color: #f8f9fa !important;
-}
-
-.logout-item:hover {
-    background-color: #fff5f5 !important;
 }

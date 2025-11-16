@@ -47,7 +47,8 @@ const apiService = {
                 'Content-Type': 'application/json',
                 ...options.headers,
             },
-            ...options
+            ...options,
+            mode: 'cors',
         };
 
         if (state.authToken) {
@@ -59,29 +60,22 @@ const apiService = {
         }
 
         try {
-            console.log(`API Request: ${options.method || 'GET'} ${url}`);
+            console.log(`🔄 API Request: ${options.method || 'GET'} ${url}`);
             
             const response = await fetch(url, config);
             
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error(`API Error ${response.status}:`, errorText);
-                
-                // Попробуем распарсить JSON ошибки
-                try {
-                    const errorData = JSON.parse(errorText);
-                    throw new Error(errorData.message || `HTTP ${response.status}`);
-                } catch {
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
-                }
+                console.error(`❌ API Error ${response.status}:`, errorText);
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
 
             const data = await response.json();
-            console.log(`API Success: ${options.method || 'GET'} ${url}`);
+            console.log(`✅ API Success: ${options.method || 'GET'} ${url}`);
             return data;
             
         } catch (error) {
-            console.error('API request failed:', error);
+            console.error('❌ API request failed:', error);
             
             if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
                 throw new Error('Не удалось подключиться к серверу. Проверьте, что бэкенд запущен.');
@@ -114,13 +108,7 @@ const apiService = {
     async getNPOs(filters = {}) {
         const params = new URLSearchParams();
         Object.entries(filters).forEach(([key, value]) => {
-            if (value) {
-                if (Array.isArray(value)) {
-                    value.forEach(v => params.append(key, v));
-                } else {
-                    params.append(key, value);
-                }
-            }
+            if (value) params.append(key, value);
         });
         
         const query = params.toString();
@@ -183,15 +171,10 @@ const mapService = {
 
     init() {
         try {
-            console.log('Initializing Leaflet Map...');
+            console.log('🗺️ Initializing Leaflet Map...');
             
-            const mapContainer = document.getElementById('map');
-            if (!mapContainer) {
-                console.error('Map container not found');
-                return;
-            }
-
             // Очищаем контейнер карты
+            const mapContainer = document.getElementById('map');
             mapContainer.innerHTML = '';
 
             // Инициализация карты Leaflet
@@ -204,16 +187,16 @@ const mapService = {
             }).addTo(this.map);
 
             this.isInitialized = true;
-            console.log('Leaflet Map initialized successfully');
+            console.log('✅ Leaflet Map initialized successfully');
 
         } catch (error) {
-            console.error('Error initializing Leaflet Map:', error);
+            console.error('❌ Error initializing Leaflet Map:', error);
         }
     },
 
     addMarker(npo) {
         if (!this.map || !this.isInitialized) {
-            console.warn('Map not ready, skipping marker:', npo.name);
+            console.warn('⚠️ Map not ready, skipping marker:', npo.name);
             return null;
         }
 
@@ -221,21 +204,12 @@ const mapService = {
             // Создаем кастомную иконку
             const icon = this.createCustomIcon(npo.category);
             
-            // Проверяем координаты
-            const lat = parseFloat(npo.lat);
-            const lng = parseFloat(npo.lng);
-            
-            if (isNaN(lat) || isNaN(lng)) {
-                console.warn('Invalid coordinates for NPO:', npo.name, npo.lat, npo.lng);
-                return null;
-            }
-
             // Создаем метку
-            const marker = L.marker([lat, lng], { icon })
+            const marker = L.marker([parseFloat(npo.lat), parseFloat(npo.lng)], { icon })
                 .addTo(this.map)
                 .bindPopup(`
                     <div style="min-width: 250px; padding: 10px;">
-                        <h4 style="margin: 0 0 8px 0; color: #003274;">${npo.name}</h4>
+                        <h4 style="margin: 0 0 8px 0; color: #006CB7;">${npo.name}</h4>
                         <p style="margin: 0 0 6px 0; font-size: 12px; color: #777;">
                             <strong>Категория:</strong> ${npo.category}
                         </p>
@@ -243,10 +217,10 @@ const mapService = {
                             <strong>Город:</strong> ${npo.city}
                         </p>
                         <p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.4;">
-                            ${npo.description ? npo.description.substring(0, 120) + '...' : 'Описание отсутствует'}
+                            ${npo.description.substring(0, 120)}...
                         </p>
                         <button onclick="app.showNpoCard(${npo.id})" 
-                                style="padding: 8px 16px; background: #025EA1; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%;">
+                                style="padding: 8px 16px; background: #006CB7; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%;">
                             Подробнее
                         </button>
                     </div>
@@ -264,7 +238,7 @@ const mapService = {
             return marker;
 
         } catch (error) {
-            console.error('Error adding marker:', error);
+            console.error('❌ Error adding marker:', error);
             return null;
         }
     },
@@ -272,17 +246,17 @@ const mapService = {
     // Создание кастомной иконки для маркера
     createCustomIcon(category) {
         const colors = {
-            'Экология': '#56C02B',      // зеленый
-            'Помощь животным': '#FCC30B', // желтый
-            'Социальная поддержка': '#E2007A', // маджента
-            'Образование': '#025EA1',   // синий
-            'Культура': '#6CACE4',      // голубой
-            'Спорт': '#FD6925',         // оранжевый
-            'Здравоохранение': '#259789', // бирюзовый
+            'Экология': '#28a745',
+            'Помощь животным': '#ffc107', 
+            'Социальная поддержка': '#dc3545',
+            'Образование': '#007bff',
+            'Культура': '#6f42c1',
+            'Спорт': '#fd7e14',
+            'Здравоохранение': '#e83e8c',
             'Другое': '#6c757d'
         };
 
-        const color = colors[category] || '#003274';
+        const color = colors[category] || '#006CB7';
         
         return L.divIcon({
             className: 'custom-marker',
@@ -320,19 +294,17 @@ const mapService = {
 
     updateMarkers(npos) {
         if (!this.isInitialized) {
-            console.warn('Map not initialized, skipping markers update');
+            console.warn('⚠️ Map not initialized, skipping markers update');
             return;
         }
 
-        console.log(`Updating ${npos ? npos.length : 0} markers on map...`);
+        console.log(`📍 Updating ${npos.length} markers on map...`);
         
         // Очищаем старые маркеры
         this.clearMarkers();
 
         // Добавляем новые маркеры
-        if (npos && Array.isArray(npos)) {
-            npos.forEach(npo => this.addMarker(npo));
-        }
+        npos.forEach(npo => this.addMarker(npo));
     },
 
     setView(lat, lng, zoom = 13) {
@@ -357,7 +329,7 @@ const mapService = {
 const uiController = {
     // Initialize UI components
     init() {
-        console.log('Initializing UI components...');
+        console.log('🔧 Initializing UI components...');
         
         // Wait for DOM to be fully loaded
         if (document.readyState === 'loading') {
@@ -370,14 +342,14 @@ const uiController = {
     },
 
     delayedInit() {
-        console.log('Delayed UI initialization...');
+        console.log('🕒 Delayed UI initialization...');
         this.setupEventListeners();
         this.populateCities();
         this.populateCategories();
     },
 
     setupEventListeners() {
-        console.log('Setting up event listeners...');
+        console.log('🔧 Setting up event listeners...');
         
         const maxRetries = 10;
         let retries = 0;
@@ -406,16 +378,16 @@ const uiController = {
             const allFound = essentialElements.every(element => element !== null);
 
             if (allFound) {
-                console.log('All essential elements found, setting up listeners...');
+                console.log('✅ All essential elements found, setting up listeners...');
                 
                 // Auth modal
                 loginBtn.addEventListener('click', () => {
-                    console.log('Login button clicked');
+                    console.log('🎯 Login button clicked');
                     authModal.classList.add('active');
                 });
 
                 addNkoBtn.addEventListener('click', () => {
-                    console.log('Add NKO button clicked');
+                    console.log('🎯 Add NKO button clicked');
                     if (!state.currentUser) {
                         alert('Пожалуйста, войдите в систему для добавления организации');
                         authModal.classList.add('active');
@@ -426,7 +398,7 @@ const uiController = {
 
                 // Help button
                 helpBtn.addEventListener('click', () => {
-                    console.log('Help button clicked');
+                    console.log('🎯 Help button clicked');
                     alert(`Добро пожаловать на Карту добрых дел!\n\n
 • Используйте фильтры для поиска организаций по городу и категории
 • Нажмите на метку на карте или организацию в списке для подробной информации
@@ -456,18 +428,14 @@ const uiController = {
                 });
 
                 // Profile modal close
-                if (closeProfileModal) {
-                    closeProfileModal.addEventListener('click', () => {
-                        document.getElementById('profileModal').classList.remove('active');
-                    });
-                }
+                closeProfileModal.addEventListener('click', () => {
+                    document.getElementById('profileModal').classList.remove('active');
+                });
 
                 // Admin modal close
-                if (closeAdminModal) {
-                    closeAdminModal.addEventListener('click', () => {
-                        document.getElementById('adminModal').classList.remove('active');
-                    });
-                }
+                closeAdminModal.addEventListener('click', () => {
+                    document.getElementById('adminModal').classList.remove('active');
+                });
 
                 // Tab switching
                 tabs.forEach(tab => {
@@ -492,39 +460,30 @@ const uiController = {
                 });
 
                 // Admin tabs
-                if (adminTabs.length > 0) {
-                    adminTabs.forEach(tab => {
-                        tab.addEventListener('click', () => {
-                            const tabName = tab.dataset.tab;
-                            
-                            // Update tabs
-                            document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
-                            tab.classList.add('active');
-                            
-                            // Update content
-                            document.querySelectorAll('.admin-tab-content').forEach(content => {
-                                content.classList.remove('active');
-                            });
-                            const tabContent = document.getElementById(`${tabName}Tab`);
-                            if (tabContent) {
-                                tabContent.classList.add('active');
-                            }
-                            
-                            // Load data for tab if needed
-                            if (tabName === 'users') {
-                                this.loadUsersTab();
-                            }
+                adminTabs.forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        const tabName = tab.dataset.tab;
+                        
+                        // Update tabs
+                        document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        
+                        // Update content
+                        document.querySelectorAll('.admin-tab-content').forEach(content => {
+                            content.classList.remove('active');
                         });
+                        document.getElementById(`${tabName}Tab`).classList.add('active');
+                        
+                        // Load data for tab if needed
+                        if (tabName === 'users') {
+                            this.loadUsersTab();
+                        }
                     });
-                }
+                });
 
                 // Form submissions
-                if (authForm) {
-                    authForm.addEventListener('submit', app.handleAuth);
-                }
-                if (addNkoForm) {
-                    addNkoForm.addEventListener('submit', app.handleAddNPO);
-                }
+                authForm.addEventListener('submit', app.handleAuth);
+                addNkoForm.addEventListener('submit', app.handleAddNPO);
 
                 // Filters
                 if (searchInput) {
@@ -537,12 +496,9 @@ const uiController = {
 
                 // Category checkboxes (assign later when they are created)
                 setTimeout(() => {
-                    const categoryCheckboxes = document.querySelectorAll('input[name="category"]');
-                    if (categoryCheckboxes.length > 0) {
-                        categoryCheckboxes.forEach(checkbox => {
-                            checkbox.addEventListener('change', app.applyFilters);
-                        });
-                    }
+                    document.querySelectorAll('input[name="category"]').forEach(checkbox => {
+                        checkbox.addEventListener('change', app.applyFilters);
+                    });
                 }, 500);
 
                 // Mobile sidebar toggle
@@ -553,32 +509,26 @@ const uiController = {
                 }
 
                 // Close modals on outside click
-                const profileModal = document.getElementById('profileModal');
-                if (profileModal) {
-                    profileModal.addEventListener('click', (e) => {
-                        if (e.target === e.currentTarget) {
-                            e.currentTarget.classList.remove('active');
-                        }
-                    });
-                }
+                document.getElementById('profileModal').addEventListener('click', (e) => {
+                    if (e.target === e.currentTarget) {
+                        e.currentTarget.classList.remove('active');
+                    }
+                });
 
-                const adminModal = document.getElementById('adminModal');
-                if (adminModal) {
-                    adminModal.addEventListener('click', (e) => {
-                        if (e.target === e.currentTarget) {
-                            e.currentTarget.classList.remove('active');
-                        }
-                    });
-                }
+                document.getElementById('adminModal').addEventListener('click', (e) => {
+                    if (e.target === e.currentTarget) {
+                        e.currentTarget.classList.remove('active');
+                    }
+                });
 
-                console.log('Event listeners setup completed');
+                console.log('✅ Event listeners setup completed');
                 
             } else if (retries < maxRetries) {
                 retries++;
-                console.log(`Some elements not found, retry ${retries}/${maxRetries}...`);
+                console.log(`🕒 Some elements not found, retry ${retries}/${maxRetries}...`);
                 setTimeout(trySetup, 300);
             } else {
-                console.error('Failed to setup event listeners after retries');
+                console.error('❌ Failed to setup event listeners after retries');
             }
         };
         
@@ -594,11 +544,7 @@ const uiController = {
             const nkoCitySelect = document.getElementById('nkoCity');
             
             if (citySelect && nkoCitySelect) {
-                console.log('Found city select elements, populating...');
-                
-                // Очищаем существующие опции (кроме первой)
-                citySelect.innerHTML = '<option value="">Все города</option>';
-                nkoCitySelect.innerHTML = '<option value="">Выберите город</option>';
+                console.log('✅ Found city select elements, populating...');
                 
                 CONFIG.CITIES.forEach(city => {
                     const option = `<option value="${city}">${city}</option>`;
@@ -606,13 +552,13 @@ const uiController = {
                     nkoCitySelect.innerHTML += option;
                 });
                 
-                console.log('Cities populated successfully');
+                console.log('✅ Cities populated successfully');
             } else if (retries < maxRetries) {
                 retries++;
-                console.log(`City elements not found, retry ${retries}/${maxRetries}...`);
+                console.log(`🕒 City elements not found, retry ${retries}/${maxRetries}...`);
                 setTimeout(tryPopulate, 200);
             } else {
-                console.error('Failed to find city elements after retries');
+                console.error('❌ Failed to find city elements after retries');
             }
         };
         
@@ -628,11 +574,7 @@ const uiController = {
             const nkoCategorySelect = document.getElementById('nkoCategory');
             
             if (categoryFilter && nkoCategorySelect) {
-                console.log('Found category elements, populating...');
-                
-                // Очищаем существующие опции
-                categoryFilter.innerHTML = '';
-                nkoCategorySelect.innerHTML = '<option value="">Выберите категорию</option>';
+                console.log('✅ Found category elements, populating...');
                 
                 CONFIG.CATEGORIES.forEach(category => {
                     // Filter checkboxes
@@ -647,13 +589,13 @@ const uiController = {
                     nkoCategorySelect.innerHTML += `<option value="${category}">${category}</option>`;
                 });
                 
-                console.log('Categories populated successfully');
+                console.log('✅ Categories populated successfully');
             } else if (retries < maxRetries) {
                 retries++;
-                console.log(`Category elements not found, retry ${retries}/${maxRetries}...`);
+                console.log(`🕒 Category elements not found, retry ${retries}/${maxRetries}...`);
                 setTimeout(tryPopulate, 200);
             } else {
-                console.error('Failed to find category elements after retries');
+                console.error('❌ Failed to find category elements after retries');
             }
         };
         
@@ -661,107 +603,100 @@ const uiController = {
     },
 
     // Update auth UI with profile and admin access
-    updateAuthUI() {
-        const loginBtn = document.getElementById('loginBtn');
-        const addNkoBtn = document.getElementById('addNkoBtn');
+    // Update auth UI with profile and admin access
+updateAuthUI() {
+    const loginBtn = document.getElementById('loginBtn');
+    const addNkoBtn = document.getElementById('addNkoBtn');
 
-        if (!loginBtn) return;
-
-        if (state.currentUser) {
-            // Show username and add menu
-            if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
-                loginBtn.innerHTML = `<i class="fas fa-crown"></i> ${state.currentUser.firstName} ▾`;
-            } else {
-                loginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName} ▾`;
-            }
-            
-            // Правильный обработчик для меню пользователя
-            loginBtn.onclick = (e) => {
-                e.stopPropagation();
-                this.showUserMenu();
-            };
-            
-            if (addNkoBtn) {
-                addNkoBtn.disabled = false;
-            }
+    if (state.currentUser) {
+        // Show username and add menu
+        if (state.currentUser.role === CONFIG.ROLES.ADMIN) {
+            loginBtn.innerHTML = `<i class="fas fa-crown"></i> ${state.currentUser.firstName} ▾`;
         } else {
-            loginBtn.innerHTML = '<i class="fas fa-user"></i> Войти';
-            loginBtn.onclick = () => {
-                const authModal = document.getElementById('authModal');
-                if (authModal) authModal.classList.add('active');
-            };
-            if (addNkoBtn) {
-                addNkoBtn.disabled = true;
-            }
+            loginBtn.innerHTML = `<i class="fas fa-user"></i> ${state.currentUser.firstName} ▾`;
         }
-    },
-
-    // Show user menu with options
-    showUserMenu() {
-        console.log('showUserMenu called');
-        console.log('Current user:', state.currentUser);
         
-        // Удаляем старое меню если есть
-        const oldMenu = document.querySelector('.user-menu');
-        if (oldMenu) oldMenu.remove();
-
-        // Создаем выпадающее меню
-        const menu = document.createElement('div');
-        menu.className = 'user-menu';
-        menu.style.cssText = `
-            position: fixed;
-            top: 70px;
-            right: 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            padding: 10px 0;
-            min-width: 200px;
-            z-index: 10000;
-            border: 1px solid #eee;
-        `;
-
-        // Для администратора
-        if (state.currentUser.role === 'admin') {
-            menu.innerHTML = `
-                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showProfile()">
-                    <i class="fas fa-user"></i> Личный кабинет
-                </div>
-                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showAdminPanel()">
-                    <i class="fas fa-crown"></i> Админ панель
-                </div>
-                <hr style="margin: 5px 0; border: none; border-top: 1px solid #eee;">
-                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #dc3545;" onclick="app.logout()">
-                    <i class="fas fa-sign-out-alt"></i> Выйти
-                </div>
-            `;
-        } else {
-            // Для обычного пользователя
-            menu.innerHTML = `
-                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showProfile()">
-                    <i class="fas fa-user"></i> Личный кабинет
-                </div>
-                <hr style="margin: 5px 0; border: none; border-top: 1px solid #eee;">
-                <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #dc3545;" onclick="app.logout()">
-                    <i class="fas fa-sign-out-alt"></i> Выйти
-                </div>
-            `;
-        }
-
-        document.body.appendChild(menu);
-
-        // Закрытие меню при клике вне его
-        const closeMenu = (e) => {
-            if (!menu.contains(e.target) && e.target.id !== 'loginBtn') {
-                menu.remove();
-                document.removeEventListener('click', closeMenu);
-            }
+        // Правильный обработчик для меню пользователя
+        loginBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.showUserMenu();
         };
+        
+        addNkoBtn.disabled = false;
+    } else {
+        loginBtn.innerHTML = '<i class="fas fa-user"></i> Войти';
+        loginBtn.onclick = () => document.getElementById('authModal').classList.add('active');
+        addNkoBtn.disabled = true;
+    }
+},
 
-        setTimeout(() => {
-            document.addEventListener('click', closeMenu);
-        }, 100);
-    },
+// Show user menu with options
+showUserMenu() {
+    console.log('🎯 showUserMenu called');
+    console.log('👤 Current user:', state.currentUser);
+    console.log('🎭 User role:', state.currentUser?.role);
+    
+    // Создаем выпадающее меню
+    const menu = document.createElement('div');
+    menu.className = 'user-menu';
+    menu.style.cssText = `
+        position: fixed;
+        top: 70px;
+        right: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        padding: 10px 0;
+        min-width: 200px;
+        z-index: 10000;
+        border: 1px solid #eee;
+    `;
+
+    // Для администратора
+    if (state.currentUser.role === 'admin') {
+        menu.innerHTML = `
+            <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showProfile()">
+                <i class="fas fa-user"></i> Личный кабинет
+            </div>
+            <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showAdminPanel()">
+                <i class="fas fa-crown"></i> Админ панель
+            </div>
+            <hr style="margin: 5px 0; border: none; border-top: 1px solid #eee;">
+            <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #dc3545;" onclick="app.logout()">
+                <i class="fas fa-sign-out-alt"></i> Выйти
+            </div>
+        `;
+    } else {
+        // Для обычного пользователя
+        menu.innerHTML = `
+            <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="uiController.showProfile()">
+                <i class="fas fa-user"></i> Личный кабинет
+            </div>
+            <hr style="margin: 5px 0; border: none; border-top: 1px solid #eee;">
+            <div class="menu-item" style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #dc3545;" onclick="app.logout()">
+                <i class="fas fa-sign-out-alt"></i> Выйти
+            </div>
+        `;
+    }
+
+    // Удаляем старое меню если есть
+    const oldMenu = document.querySelector('.user-menu');
+    if (oldMenu) oldMenu.remove();
+
+    document.body.appendChild(menu);
+
+    // Закрытие меню при клике вне его
+    const closeMenu = (e) => {
+        if (!menu.contains(e.target) && e.target.id !== 'loginBtn') {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+        }
+    };
+
+    setTimeout(() => {
+        document.addEventListener('click', closeMenu);
+    }, 100);
+},
 
     // Show profile modal
     async showProfile() {
@@ -774,37 +709,26 @@ const uiController = {
             
             if (profileResponse.success && statsResponse.success && nposResponse.success) {
                 this.renderProfile(profileResponse.user, statsResponse.data, nposResponse.data);
-                const profileModal = document.getElementById('profileModal');
-                if (profileModal) {
-                    profileModal.classList.add('active');
-                }
+                document.getElementById('profileModal').classList.add('active');
             }
         } catch (error) {
             console.error('Error loading profile:', error);
-            alert('Ошибка загрузки профиля: ' + error.message);
+            alert('Ошибка загрузки профиля');
         }
     },
 
     // Render profile data
     renderProfile(user, stats, npos) {
-        const profileName = document.getElementById('profileName');
-        const profileEmail = document.getElementById('profileEmail');
-        const profileRole = document.getElementById('profileRole');
-        const statTotal = document.getElementById('statTotal');
-        const statApproved = document.getElementById('statApproved');
-        const statPending = document.getElementById('statPending');
-
-        if (profileName) profileName.textContent = `${user.firstName} ${user.lastName}`;
-        if (profileEmail) profileEmail.textContent = user.email;
+        document.getElementById('profileName').textContent = `${user.firstName} ${user.lastName}`;
+        document.getElementById('profileEmail').textContent = user.email;
         
-        if (profileRole) {
-            profileRole.textContent = user.role === 'admin' ? 'Администратор' : 'Пользователь';
-            profileRole.className = `user-role role-${user.role}`;
-        }
+        const roleElement = document.getElementById('profileRole');
+        roleElement.textContent = user.role === 'admin' ? 'Администратор' : 'Пользователь';
+        roleElement.className = `user-role role-${user.role}`;
         
-        if (statTotal) statTotal.textContent = stats.totalNPOs || 0;
-        if (statApproved) statApproved.textContent = stats.approvedNPOs || 0;
-        if (statPending) statPending.textContent = stats.pendingNPOs || 0;
+        document.getElementById('statTotal').textContent = stats.totalNPOs;
+        document.getElementById('statApproved').textContent = stats.approvedNPOs;
+        document.getElementById('statPending').textContent = stats.pendingNPOs;
         
         this.renderUserNPOs(npos.data || npos);
     },
@@ -812,7 +736,6 @@ const uiController = {
     // Render user's NPOs
     renderUserNPOs(npos) {
         const container = document.getElementById('userNposList');
-        if (!container) return;
         
         if (!npos || npos.length === 0) {
             container.innerHTML = '<div class="no-data">У вас пока нет организаций</div>';
@@ -844,25 +767,22 @@ const uiController = {
     // Show admin panel
     async showAdminPanel() {
         try {
-            console.log('Opening admin panel...');
+            console.log('👑 Opening admin panel...');
             
             // Закрываем меню
             const menu = document.querySelector('.user-menu');
             if (menu) menu.remove();
             
             // Показываем модальное окно
-            const adminModal = document.getElementById('adminModal');
-            if (adminModal) {
-                adminModal.classList.add('active');
-            }
+            document.getElementById('adminModal').classList.add('active');
             
             // Загружаем данные для модерации
             await this.loadModerationData();
             
-            console.log('Admin panel opened successfully');
+            console.log('✅ Admin panel opened successfully');
             
         } catch (error) {
-            console.error('Error opening admin panel:', error);
+            console.error('❌ Error opening admin panel:', error);
             alert('Ошибка загрузки админ панели: ' + error.message);
         }
     },
@@ -877,10 +797,7 @@ const uiController = {
 
             if (moderationResponse.success) {
                 this.renderModerationList(moderationResponse.data);
-                const pendingCount = document.getElementById('pendingCount');
-                if (pendingCount) {
-                    pendingCount.textContent = `${moderationResponse.total} на проверке`;
-                }
+                document.getElementById('pendingCount').textContent = `${moderationResponse.total} на проверке`;
             }
 
             if (statsResponse.success) {
@@ -894,7 +811,6 @@ const uiController = {
     // Render moderation list
     renderModerationList(npos) {
         const container = document.getElementById('moderationList');
-        if (!container) return;
         
         if (!npos || npos.length === 0) {
             container.innerHTML = '<div class="no-data">Нет организаций на модерации</div>';
@@ -937,15 +853,10 @@ const uiController = {
     renderAdminStats(stats) {
         if (!stats) return;
         
-        const adminTotalNPOs = document.getElementById('adminTotalNPOs');
-        const adminApprovedNPOs = document.getElementById('adminApprovedNPOs');
-        const adminPendingNPOs = document.getElementById('adminPendingNPOs');
-        const adminTotalUsers = document.getElementById('adminTotalUsers');
-        
-        if (adminTotalNPOs) adminTotalNPOs.textContent = stats.npos?.total || 0;
-        if (adminApprovedNPOs) adminApprovedNPOs.textContent = stats.npos?.approved || 0;
-        if (adminPendingNPOs) adminPendingNPOs.textContent = stats.npos?.pending || 0;
-        if (adminTotalUsers) adminTotalUsers.textContent = stats.users?.total || 0;
+        document.getElementById('adminTotalNPOs').textContent = stats.npos?.total || 0;
+        document.getElementById('adminApprovedNPOs').textContent = stats.npos?.approved || 0;
+        document.getElementById('adminPendingNPOs').textContent = stats.npos?.pending || 0;
+        document.getElementById('adminTotalUsers').textContent = stats.users?.total || 0;
     },
 
     // Approve NPO
@@ -961,7 +872,7 @@ const uiController = {
             }
         } catch (error) {
             console.error('Error approving NPO:', error);
-            alert('Ошибка при одобрении организации: ' + error.message);
+            alert('Ошибка при одобрении организации');
         }
     },
 
@@ -984,7 +895,7 @@ const uiController = {
             }
         } catch (error) {
             console.error('Error rejecting NPO:', error);
-            alert('Ошибка при отклонении организации: ' + error.message);
+            alert('Ошибка при отклонении организации');
         }
     },
 
@@ -997,17 +908,13 @@ const uiController = {
             }
         } catch (error) {
             console.error('Error loading users:', error);
-            const usersList = document.getElementById('usersList');
-            if (usersList) {
-                usersList.innerHTML = '<div class="error">Ошибка загрузки пользователей</div>';
-            }
+            document.getElementById('usersList').innerHTML = '<div class="error">Ошибка загрузки пользователей</div>';
         }
     },
 
     // Render users list
     renderUsersList(users) {
         const container = document.getElementById('usersList');
-        if (!container) return;
         
         if (!users || users.length === 0) {
             container.innerHTML = '<div class="no-data">Нет пользователей</div>';
@@ -1048,7 +955,6 @@ const uiController = {
     // Render NPO list in sidebar
     renderNPOList(npos) {
         const nkoList = document.getElementById('nkoList');
-        if (!nkoList) return;
         
         if (!npos || npos.length === 0) {
             nkoList.innerHTML = '<div class="loading">Организации не найдены</div>';
@@ -1079,38 +985,26 @@ const uiController = {
     // Show NPO card with details
     showNPOCard(npo) {
         const card = document.getElementById('nkoCard');
-        if (!card) return;
-
-        const cardTitle = document.getElementById('cardTitle');
-        const cardCategory = document.getElementById('cardCategory');
-        const cardDescription = document.getElementById('cardDescription');
-        const cardVolunteer = document.getElementById('cardVolunteer');
-        const cardAddress = document.getElementById('cardAddress');
-        const cardPhone = document.getElementById('cardPhone');
-        const cardWebsite = document.getElementById('cardWebsite');
-
-        if (cardTitle) cardTitle.textContent = npo.name;
-        if (cardCategory) cardCategory.textContent = npo.category;
-        if (cardDescription) cardDescription.textContent = npo.description;
-        if (cardVolunteer) cardVolunteer.textContent = npo.volunteerActivities;
-        if (cardAddress) cardAddress.textContent = npo.address;
-        if (cardPhone) cardPhone.textContent = npo.phone || 'Не указан';
-        if (cardWebsite) cardWebsite.textContent = npo.website || 'Не указан';
+        document.getElementById('cardTitle').textContent = npo.name;
+        document.getElementById('cardCategory').textContent = npo.category;
+        document.getElementById('cardDescription').textContent = npo.description;
+        document.getElementById('cardVolunteer').textContent = npo.volunteerActivities;
+        document.getElementById('cardAddress').textContent = npo.address;
+        document.getElementById('cardPhone').textContent = npo.phone || 'Не указан';
+        document.getElementById('cardWebsite').textContent = npo.website || 'Не указан';
 
         // Social links
         const socialContainer = document.getElementById('cardSocial');
-        if (socialContainer) {
-            socialContainer.innerHTML = '';
-            
-            if (npo.social_vk) {
-                socialContainer.innerHTML += `<a href="${npo.social_vk}" class="social-link" target="_blank"><i class="fab fa-vk"></i></a>`;
-            }
-            if (npo.social_telegram) {
-                socialContainer.innerHTML += `<a href="${npo.social_telegram}" class="social-link" target="_blank"><i class="fab fa-telegram"></i></a>`;
-            }
-            if (npo.social_instagram) {
-                socialContainer.innerHTML += `<a href="${npo.social_instagram}" class="social-link" target="_blank"><i class="fab fa-instagram"></i></a>`;
-            }
+        socialContainer.innerHTML = '';
+        
+        if (npo.social_vk) {
+            socialContainer.innerHTML += `<a href="${npo.social_vk}" class="social-link" target="_blank"><i class="fab fa-vk"></i></a>`;
+        }
+        if (npo.social_telegram) {
+            socialContainer.innerHTML += `<a href="${npo.social_telegram}" class="social-link" target="_blank"><i class="fab fa-telegram"></i></a>`;
+        }
+        if (npo.social_instagram) {
+            socialContainer.innerHTML += `<a href="${npo.social_instagram}" class="social-link" target="_blank"><i class="fab fa-instagram"></i></a>`;
         }
 
         card.classList.add('active');
@@ -1121,25 +1015,25 @@ const uiController = {
 const app = {
     async init() {
         try {
-            console.log('Initializing application...');
+            console.log('🔧 Initializing application...');
             
             // Initialize services
             mapService.init();
             uiController.init();
             
-            console.log('UI initialized');
+            console.log('✅ UI initialized');
 
             // Check authentication
             await this.checkAuth();
-            console.log('Auth check completed');
+            console.log('✅ Auth check completed');
 
             // Load NPOs
             await this.loadNPOs();
-            console.log('NPOs loaded');
+            console.log('✅ NPOs loaded');
 
-            console.log('NKO Map application initialized successfully');
+            console.log('🚀 NKO Map application initialized successfully');
         } catch (error) {
-            console.error('Application initialization error:', error);
+            console.error('❌ Application initialization error:', error);
         }
     },
 
@@ -1147,12 +1041,8 @@ const app = {
         if (state.authToken) {
             try {
                 const result = await apiService.getCurrentUser();
-                if (result.success) {
-                    state.currentUser = result.user;
-                    uiController.updateAuthUI();
-                } else {
-                    this.logout();
-                }
+                state.currentUser = result.user;
+                uiController.updateAuthUI();
             } catch (error) {
                 console.error('Auth check failed:', error);
                 this.logout();
@@ -1163,19 +1053,14 @@ const app = {
     async loadNPOs(filters = {}) {
         try {
             const result = await apiService.getNPOs(filters);
-            if (result.success) {
-                state.npos = result.data;
-                uiController.renderNPOList(state.npos);
-                mapService.updateMarkers(state.npos);
-            } else {
-                throw new Error(result.message || 'Failed to load NPOs');
-            }
+            state.npos = result.data;
+            
+            uiController.renderNPOList(state.npos);
+            mapService.updateMarkers(state.npos);
         } catch (error) {
             console.error('Error loading NPOs:', error);
-            const nkoList = document.getElementById('nkoList');
-            if (nkoList) {
-                nkoList.innerHTML = '<div class="loading error">Ошибка загрузки организаций: ' + error.message + '</div>';
-            }
+            document.getElementById('nkoList').innerHTML = 
+                '<div class="loading error">Ошибка загрузки организаций</div>';
         }
     },
 
@@ -1192,11 +1077,6 @@ const app = {
             if (isRegister) {
                 const firstName = document.getElementById('firstName').value;
                 const lastName = document.getElementById('lastName').value;
-                
-                if (!firstName || !lastName) {
-                    alert('Пожалуйста, заполните все поля');
-                    return;
-                }
                 
                 result = await apiService.register({ email, password, firstName, lastName });
             } else {
@@ -1217,16 +1097,8 @@ const app = {
                     ' (Администратор)' : '';
                 alert(`${result.message}${roleMessage}`);
                 
-                const authModal = document.getElementById('authModal');
-                if (authModal) {
-                    authModal.classList.remove('active');
-                }
-                const authForm = document.getElementById('authForm');
-                if (authForm) {
-                    authForm.reset();
-                }
-            } else {
-                throw new Error(result.message || 'Authentication failed');
+                document.getElementById('authModal').classList.remove('active');
+                document.getElementById('authForm').reset();
             }
         } catch (error) {
             alert(error.message || 'Произошла ошибка при аутентификации');
@@ -1236,6 +1108,7 @@ const app = {
     async handleAddNPO(e) {
         e.preventDefault();
         
+        const formData = new FormData(e.target);
         const npoData = {
             name: document.getElementById('nkoName').value,
             category: document.getElementById('nkoCategory').value,
@@ -1249,35 +1122,18 @@ const app = {
             lng: 37.62  // In real app, get from map picker
         };
         
-        // Валидация обязательных полей
-        if (!npoData.name || !npoData.category || !npoData.description || !npoData.volunteerActivities || !npoData.city || !npoData.address) {
-            alert('Пожалуйста, заполните все обязательные поля (отмечены *)');
-            return;
-        }
-        
         try {
             const result = await apiService.createNPO(npoData);
             
             if (result.success) {
                 alert(result.message);
-                const addNkoModal = document.getElementById('addNkoModal');
-                if (addNkoModal) {
-                    addNkoModal.classList.remove('active');
-                }
-                const addNkoForm = document.getElementById('addNkoForm');
-                if (addNkoForm) {
-                    addNkoForm.reset();
-                }
+                document.getElementById('addNkoModal').classList.remove('active');
+                document.getElementById('addNkoForm').reset();
                 
                 // Reload user's NPOs if profile is open
-                if (document.getElementById('profileModal')?.classList.contains('active')) {
+                if (document.getElementById('profileModal').classList.contains('active')) {
                     uiController.showProfile();
                 }
-                
-                // Reload all NPOs
-                await this.loadNPOs();
-            } else {
-                throw new Error(result.message || 'Failed to create NPO');
             }
         } catch (error) {
             alert(error.message || 'Произошла ошибка при добавлении организации');
@@ -1329,10 +1185,10 @@ const app = {
 };
 
 // Debug: Check that script is loaded
-console.log('script.js loaded successfully');
+console.log('🚀 script.js loaded successfully');
 
 // Debug: Check function availability
-console.log('Functions available:', {
+console.log('🔧 Functions available:', {
     uiController: typeof uiController,
     app: typeof app,
     mapService: typeof mapService,
@@ -1340,17 +1196,11 @@ console.log('Functions available:', {
 });
 
 // Initialize application when DOM is loaded
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('DOM fully loaded');
-        app.init();
-    });
-} else {
-    console.log('DOM already loaded');
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('✅ DOM fully loaded');
     app.init();
-}
+});
 
 // Make app globally available for HTML onclick handlers
 window.app = app;
 window.uiController = uiController;
-window.mapService = mapService;
