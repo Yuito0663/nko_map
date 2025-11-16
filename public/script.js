@@ -679,7 +679,7 @@ const uiController = {
         
         console.log('UI updated for guest');  // Для отладки
     }
-}
+
 
 
     // Show user menu with options
